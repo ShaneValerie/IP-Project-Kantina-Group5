@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lola's Silog · Analytics</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-seller-app page-seller-analytics">
+
+<div class="app-shell">
+
+  <header class="app-topbar">
+    <h1>Analytics</h1>
+    <div class="segmented" id="range-toggle">
+      <button type="button" class="is-active" data-range="7">7 days</button>
+      <button type="button" data-range="30">30 days</button>
+    </div>
+  </header>
+
+  <div class="app-body">
+
+    <aside class="sidebar">
+      <nav>
+        <ul id="nav-list">
+          <li><a class="nav-item" href="orders.html">Orders</a></li>
+          <li><a class="nav-item" href="menu.html">Menu</a></li>
+          <li><a class="nav-item is-active" href="analytics.html">Analytics</a></li>
+          <li><a class="nav-item" href="tables.html">Tables</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="nav-item" data-panel="settings">Settings</button>
+      </div>
+    </aside>
+
+    <main class="content" id="content">
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <p class="label">Revenue</p>
+          <p class="value" id="stat-revenue">\u20B10</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Orders</p>
+          <p class="value" id="stat-orders">0</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Avg ticket</p>
+          <p class="value" id="stat-avg">\u20B10</p>
+        </div>
+      </div>
+
+      <h2 class="section-title">Revenue by day</h2>
+      <div class="chart-frame" id="chart-frame" role="img" aria-label="Revenue by day bar chart"></div>
+
+      <div class="summary-row">
+        <div class="summary-card">
+          <h3>Top items</h3>
+          <div class="summary-list" id="top-items"></div>
+        </div>
+        <div class="summary-card">
+          <h3>Peak hours</h3>
+          <div class="summary-list" id="peak-hours"></div>
+        </div>
+      </div>
+
+    </main>
+
+    <div class="panel-placeholder" id="panel-placeholder" hidden></div>
+
+  </div>
+
+</div>
+
+<script>
+(function () {
+
+  // ---------------------------------------------------
+  // Data — swap this for a real query against your backend,
+  // keyed by the same "7" / "30" range values as the toggle
+  // ---------------------------------------------------
+  const DATASETS = {
+    "7": {
+      revenue: 18420,
+      orders: 214,
+      avgTicket: 86,
+      bars: [49, 77, 60, 100, 87, 45, 69],
+      topItems: [
+        { name: "Tapsilog", value: 88 },
+        { name: "Longsilog", value: 54 },
+      ],
+      peakHours: [
+        { name: "11:30\u201312:30", value: "41%" },
+        { name: "17:00\u201318:00", value: "22%" },
+      ],
+    },
+    "30": {
+      revenue: 78650,
+      orders: 918,
+      avgTicket: 86,
+      bars: [52, 68, 74, 60, 83, 49, 71, 58, 90, 65, 47, 76, 69, 55, 88,
+             62, 73, 50, 80, 66, 44, 78, 60, 92, 57, 70, 63, 85, 54, 72],
+      topItems: [
+        { name: "Tapsilog", value: 372 },
+        { name: "Longsilog", value: 231 },
+      ],
+      peakHours: [
+        { name: "11:30\u201312:30", value: "39%" },
+        { name: "17:00\u201318:00", value: "24%" },
+      ],
+    },
+  };
+
+  const pesos = (n) => `\u20B1${n.toLocaleString()}`;
+
+  const chartFrame = document.getElementById("chart-frame");
+  const topItemsEl = document.getElementById("top-items");
+  const peakHoursEl = document.getElementById("peak-hours");
+
+  function render(range) {
+    const data = DATASETS[range];
+
+    document.getElementById("stat-revenue").textContent = pesos(data.revenue);
+    document.getElementById("stat-orders").textContent = data.orders.toLocaleString();
+    document.getElementById("stat-avg").textContent = pesos(data.avgTicket);
+
+    chartFrame.innerHTML = "";
+    data.bars.forEach(pct => {
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      bar.style.height = `${pct}%`;
+      chartFrame.appendChild(bar);
+    });
+
+    topItemsEl.innerHTML = data.topItems.map(row => `
+      <div class="row"><span class="name">${row.name}</span><span class="value">${row.value}</span></div>
+    `).join("");
+
+    peakHoursEl.innerHTML = data.peakHours.map(row => `
+      <div class="row"><span class="name">${row.name}</span><span class="value">${row.value}</span></div>
+    `).join("");
+  }
+
+  document.getElementById("range-toggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-range]");
+    if (!btn) return;
+
+    document.querySelectorAll("#range-toggle button").forEach(b => b.classList.remove("is-active"));
+    btn.classList.add("is-active");
+    render(btn.dataset.range);
+  });
+
+  // ---------------------------------------------------
+  // Sidebar nav — Orders/Menu/Analytics/Tables are real pages;
+  // Settings is a placeholder until that page exists
+  // ---------------------------------------------------
+  const navList = document.getElementById("nav-list");
+  const sidebarFooter = document.querySelector(".sidebar-footer");
+  const content = document.getElementById("content");
+  const placeholder = document.getElementById("panel-placeholder");
+
+  [navList, sidebarFooter].forEach(container => {
+    container.addEventListener("click", (e) => {
+      const btn = e.target.closest(".nav-item[data-panel]");
+      if (!btn) return;
+
+      content.hidden = true;
+      placeholder.hidden = false;
+      placeholder.textContent = `${btn.textContent.trim()} is on its way — nothing to see here yet.`;
+    });
+  });
+
+  // ---------------------------------------------------
+  // Init
+  // ---------------------------------------------------
+  render("7");
+
+})();
+</script>
+</body>
+</html>

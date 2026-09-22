@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lola's Silog · Menu</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-seller-app page-seller-menu">
+
+<div class="app-shell">
+
+  <header class="app-topbar">
+    <h1>Menu</h1>
+    <button class="btn-add" id="add-item-btn">+ Add item</button>
+  </header>
+
+  <div class="app-body">
+
+    <aside class="sidebar">
+      <nav>
+        <ul id="nav-list">
+          <li><a class="nav-item" href="orders.html">Orders</a></li>
+          <li><a class="nav-item is-active" href="menu.html">Menu</a></li>
+          <li><a class="nav-item" href="analytics.html">Analytics</a></li>
+          <li><a class="nav-item" href="tables.html">Tables</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="nav-item" data-panel="settings">Settings</button>
+      </div>
+    </aside>
+
+    <main class="content" id="content">
+      <div class="table-header">
+        <span>Item</span>
+        <span>Price</span>
+        <span>Stock</span>
+        <span>Available</span>
+      </div>
+
+      <div class="item-list" id="item-list" aria-live="polite">
+        <!-- rows rendered by script -->
+      </div>
+
+      <p class="list-footnote">Toggling off hides the item from students immediately.</p>
+    </main>
+
+    <div class="panel-placeholder" id="panel-placeholder" hidden></div>
+
+  </div>
+
+</div>
+
+<!-- Add item modal -->
+<div class="modal-backdrop" id="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title">Add item</h2>
+    <form id="add-item-form">
+      <div class="field">
+        <label for="field-name">Item name</label>
+        <input type="text" id="field-name" name="name" required autocomplete="off">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="field-price">Price (\u20B1)</label>
+          <input type="number" id="field-price" name="price" min="0" step="1" required>
+        </div>
+        <div class="field">
+          <label for="field-stock">Stock</label>
+          <input type="number" id="field-stock" name="stock" min="0" step="1" required>
+        </div>
+      </div>
+      <div class="field field-checkbox">
+        <input type="checkbox" id="field-available" name="available" checked>
+        <label for="field-available">Available to order</label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-outline" id="modal-cancel">Cancel</button>
+        <button type="submit" class="btn-solid">Save item</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+
+  // ---------------------------------------------------
+  // Data — swap this for real menu items from your backend
+  // ---------------------------------------------------
+  let items = [
+    { id: 1, name: "Tapsilog",  price: 85, stock: 24, available: true },
+    { id: 2, name: "Longsilog", price: 75, stock: 11, available: true },
+    { id: 3, name: "Bangsilog", price: 90, stock: 0,  available: false },
+  ];
+
+  const itemList = document.getElementById("item-list");
+
+  // ---------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------
+  function render() {
+    itemList.innerHTML = "";
+
+    if (items.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "list-footnote";
+      empty.textContent = "No items yet — add your first one above.";
+      itemList.appendChild(empty);
+      return;
+    }
+
+    items.forEach(item => itemList.appendChild(buildRow(item)));
+  }
+
+  function buildRow(item) {
+    const outOfStock = item.stock === 0;
+    const isAvailable = item.available && !outOfStock;
+
+    const row = document.createElement("div");
+    row.className = "item-row" + (isAvailable ? "" : " is-unavailable");
+    row.dataset.id = item.id;
+
+    row.innerHTML = `
+      <div class="item-identity">
+        <div class="item-thumb" aria-hidden="true">im</div>
+        <span class="item-name">${escapeHtml(item.name)}</span>
+      </div>
+      <span class="cell-value">\u20B1${item.price}</span>
+      <span class="cell-value">${item.stock}</span>
+      <label class="switch">
+        <input
+          type="checkbox"
+          data-id="${item.id}"
+          ${isAvailable ? "checked" : ""}
+          ${outOfStock ? "disabled" : ""}
+          aria-label="Available: ${escapeHtml(item.name)}"
+          title="${outOfStock ? "Restock to make available" : ""}"
+        >
+        <span class="track" aria-hidden="true"></span>
+        <span class="thumb" aria-hidden="true"></span>
+      </label>
+    `;
+
+    return row;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ---------------------------------------------------
+  // Availability toggle
+  // ---------------------------------------------------
+  itemList.addEventListener("change", (e) => {
+    const checkbox = e.target.closest('input[type="checkbox"][data-id]');
+    if (!checkbox) return;
+
+    const item = items.find(i => i.id === Number(checkbox.dataset.id));
+    if (!item) return;
+
+    item.available = checkbox.checked;
+    // TODO: fire off a PATCH to your backend here, then re-render
+    // on success (or roll back the checkbox on failure).
+    render();
+  });
+
+  // ---------------------------------------------------
+  // Add item modal
+  // ---------------------------------------------------
+  const backdrop = document.getElementById("modal-backdrop");
+  const form = document.getElementById("add-item-form");
+  const addBtn = document.getElementById("add-item-btn");
+  const cancelBtn = document.getElementById("modal-cancel");
+  const nameField = document.getElementById("field-name");
+
+  function openModal() {
+    backdrop.hidden = false;
+    form.reset();
+    document.getElementById("field-available").checked = true;
+    nameField.focus();
+  }
+
+  function closeModal() {
+    backdrop.hidden = true;
+  }
+
+  addBtn.addEventListener("click", openModal);
+  cancelBtn.addEventListener("click", closeModal);
+
+  backdrop.addEventListener("click", (e) => {
+    if (e.target === backdrop) closeModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !backdrop.hidden) closeModal();
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    const name = nameField.value.trim();
+    const price = Math.max(0, parseInt(document.getElementById("field-price").value, 10) || 0);
+    const stock = Math.max(0, parseInt(document.getElementById("field-stock").value, 10) || 0);
+    const wantsAvailable = document.getElementById("field-available").checked;
+
+    if (!name) {
+      nameField.focus();
+      return;
+    }
+
+    const nextId = items.reduce((max, i) => Math.max(max, i.id), 0) + 1;
+
+    items.push({
+      id: nextId,
+      name,
+      price,
+      stock,
+      available: stock > 0 ? wantsAvailable : false,
+    });
+
+    closeModal();
+    render();
+    // TODO: POST the new item to your backend instead of just
+    // pushing it into local state.
+  });
+
+  // ---------------------------------------------------
+  // Sidebar nav — Orders/Menu/Analytics/Tables are real pages;
+  // Settings is a placeholder until that page exists
+  // ---------------------------------------------------
+  const navList = document.getElementById("nav-list");
+  const sidebarFooter = document.querySelector(".sidebar-footer");
+  const content = document.getElementById("content");
+  const placeholder = document.getElementById("panel-placeholder");
+
+  function setActivePanel(panel, label) {
+    document.querySelectorAll(".nav-item[data-panel]").forEach(btn => {
+      btn.classList.toggle("is-active", btn.dataset.panel === panel);
+    });
+    document.querySelectorAll(".nav-item[href]").forEach(link => link.classList.remove("is-active"));
+
+    content.hidden = true;
+    placeholder.hidden = false;
+    placeholder.textContent = `${label} is on its way — nothing to see here yet.`;
+  }
+
+  [navList, sidebarFooter].forEach(container => {
+    container.addEventListener("click", (e) => {
+      const btn = e.target.closest(".nav-item[data-panel]");
+      if (!btn) return;
+      setActivePanel(btn.dataset.panel, btn.textContent.trim());
+    });
+  });
+
+  // ---------------------------------------------------
+  // Init
+  // ---------------------------------------------------
+  render();
+
+})();
+</script>
+</body>
+</html>

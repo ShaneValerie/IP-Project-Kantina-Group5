@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lola's Silog · Orders</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-seller-app page-seller-orders">
+
+<div class="app-shell">
+
+  <header class="app-topbar">
+    <h1>Lola's Silog</h1>
+    <div class="topbar-right">
+      <span class="active-stat">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="7.5" cy="7.5" r="6.3" stroke="currentColor" stroke-width="1.4"/>
+          <circle cx="7.5" cy="7.5" r="2" fill="currentColor"/>
+        </svg>
+        <span id="active-count">12 active</span>
+      </span>
+      <div class="user-menu" id="user-menu">
+        <button class="user-menu__trigger" id="user-menu-trigger" aria-haspopup="true" aria-expanded="false">
+          Ana
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="user-menu__panel" role="menu">
+          <a href="login.html" role="menuitem">Sign out</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="app-body">
+
+    <aside class="sidebar">
+      <nav>
+        <ul id="nav-list">
+          <li><a class="nav-item is-active" href="orders.html">Orders</a></li>
+          <li><a class="nav-item" href="menu.html">Menu</a></li>
+          <li><a class="nav-item" href="analytics.html">Analytics</a></li>
+          <li><a class="nav-item" href="tables.html">Tables</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="nav-item" data-panel="settings">Settings</button>
+      </div>
+    </aside>
+
+    <main class="board" id="board" aria-live="polite">
+      <!-- columns are rendered here by script -->
+    </main>
+
+    <div class="panel-placeholder" id="panel-placeholder" hidden></div>
+
+  </div>
+
+</div>
+
+<script>
+(function () {
+
+  // ---------------------------------------------------
+  // Data — swap this for real orders from your backend
+  // ---------------------------------------------------
+  const COLUMNS = [
+    { status: "pending",    label: "Pending" },
+    { status: "paid",       label: "Paid" },
+    { status: "preparing",  label: "Preparing" },
+    { status: "ready",      label: "Ready" },
+  ];
+
+  let orders = [
+    { id: 90218, status: "pending",   meta: "1× Tapsilog" },
+    { id: 90219, status: "pending",   meta: "2× Longsilog" },
+    { id: 90217, status: "paid",      meta: "GCash \u20B1150" },
+    { id: 90214, status: "preparing", meta: "11:30 · 6 min left" },
+    { id: 90215, status: "preparing", meta: "11:30" },
+    { id: 90216, status: "preparing", meta: "11:34" },
+    { id: 90213, status: "ready",     meta: "Waiting 3 min" },
+    { id: 90210, status: "ready",     meta: "Waiting 1 min" },
+  ];
+
+  const PAYMENT_SAMPLES = ["GCash \u20B1150", "Cash \u20B1120", "Maya \u20B1180", "GCash \u20B1200"];
+
+  const board = document.getElementById("board");
+
+  // ---------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------
+  function render() {
+    board.innerHTML = "";
+
+    COLUMNS.forEach(col => {
+      const inColumn = orders.filter(o => o.status === col.status);
+
+      const columnEl = document.createElement("section");
+      columnEl.className = "column";
+      columnEl.setAttribute("aria-label", col.label);
+
+      const header = document.createElement("h2");
+      header.className = "column__header";
+      header.textContent = `${col.label} \u00B7 ${inColumn.length}`;
+      columnEl.appendChild(header);
+
+      const list = document.createElement("div");
+      list.className = "column__cards";
+
+      if (inColumn.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "column__empty";
+        empty.textContent = "Nothing here right now.";
+        list.appendChild(empty);
+      }
+
+      inColumn.forEach((order, index) => {
+        list.appendChild(buildCard(order, col.status, index));
+      });
+
+      columnEl.appendChild(list);
+      board.appendChild(columnEl);
+    });
+  }
+
+  function buildCard(order, status, indexInColumn) {
+    const card = document.createElement("article");
+    card.className = "card";
+    card.dataset.id = order.id;
+
+    // In "preparing", only the front of the queue is actionable —
+    // the kitchen works one ticket at a time. Later ones just wait.
+    const isQueuedPrep = status === "preparing" && indexInColumn > 0;
+    if (status === "preparing" && indexInColumn === 0) card.classList.add("is-active");
+    if (isQueuedPrep) card.classList.add("is-queued");
+
+    const idEl = document.createElement("p");
+    idEl.className = "card__id";
+    idEl.textContent = `#${order.id}`;
+    card.appendChild(idEl);
+
+    const metaEl = document.createElement("p");
+    metaEl.className = "card__meta";
+    metaEl.textContent = order.meta;
+    card.appendChild(metaEl);
+
+    const action = getAction(status, isQueuedPrep);
+    if (action) {
+      const btn = document.createElement("button");
+      btn.className = `card__btn card__btn--${action.style}`;
+      btn.textContent = action.label;
+      btn.dataset.action = action.action;
+      btn.dataset.id = order.id;
+      card.appendChild(btn);
+    }
+
+    return card;
+  }
+
+  function getAction(status, isQueuedPrep) {
+    if (status === "pending") return { label: "Accept", action: "accept", style: "solid" };
+    if (status === "paid") return { label: "Start", action: "start", style: "solid" };
+    if (status === "preparing" && !isQueuedPrep) return { label: "Mark ready", action: "markReady", style: "solid" };
+    if (status === "ready") return { label: "Complete", action: "complete", style: "outline" };
+    return null;
+  }
+
+  // ---------------------------------------------------
+  // Order transitions — replace the meta text generators
+  // with real data from your API as you wire this up
+  // ---------------------------------------------------
+  function findOrder(id) {
+    return orders.find(o => o.id === id);
+  }
+
+  function handleAction(action, id) {
+    const order = findOrder(id);
+    if (!order) return;
+
+    if (action === "accept" && order.status === "pending") {
+      order.status = "paid";
+      order.meta = PAYMENT_SAMPLES[Math.floor(Math.random() * PAYMENT_SAMPLES.length)];
+    } else if (action === "start" && order.status === "paid") {
+      order.status = "preparing";
+      order.meta = nowLabel();
+    } else if (action === "markReady" && order.status === "preparing") {
+      order.status = "ready";
+      order.meta = "Waiting 0 min";
+    } else if (action === "complete" && order.status === "ready") {
+      orders = orders.filter(o => o.id !== id);
+    }
+
+    render();
+  }
+
+  function nowLabel() {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  board.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    handleAction(btn.dataset.action, Number(btn.dataset.id));
+  });
+
+  // ---------------------------------------------------
+  // Sidebar nav — only "Orders" has a real view for now
+  // ---------------------------------------------------
+  const navList = document.getElementById("nav-list");
+  const sidebarFooter = document.querySelector(".sidebar-footer");
+  const placeholder = document.getElementById("panel-placeholder");
+
+  function setActivePanel(panel, label) {
+    document.querySelectorAll(".nav-item").forEach(btn => {
+      btn.classList.toggle("is-active", btn.dataset.panel === panel);
+    });
+
+    if (panel === "orders") {
+      board.hidden = false;
+      placeholder.hidden = true;
+    } else {
+      board.hidden = true;
+      placeholder.hidden = false;
+      placeholder.textContent = `${label} is on its way — nothing to see here yet.`;
+    }
+  }
+
+  [navList, sidebarFooter].forEach(container => {
+    container.addEventListener("click", (e) => {
+      // Only Settings still carries data-panel and gets intercepted
+      // here — every other nav item is a real link to its own page.
+      const btn = e.target.closest(".nav-item[data-panel]");
+      if (!btn) return;
+      setActivePanel(btn.dataset.panel, btn.textContent.trim());
+    });
+  });
+
+  // ---------------------------------------------------
+  // User menu dropdown
+  // ---------------------------------------------------
+  const userMenu = document.getElementById("user-menu");
+  const userMenuTrigger = document.getElementById("user-menu-trigger");
+
+  userMenuTrigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = userMenu.classList.toggle("is-open");
+    userMenuTrigger.setAttribute("aria-expanded", String(isOpen));
+  });
+
+  document.addEventListener("click", () => {
+    userMenu.classList.remove("is-open");
+    userMenuTrigger.setAttribute("aria-expanded", "false");
+  });
+
+  // ---------------------------------------------------
+  // Init
+  // ---------------------------------------------------
+  render();
+
+})();
+</script>
+</body>
+</html>

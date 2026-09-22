@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kantina · Store console — Sign in</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-seller-login">
+
+<main class="screen">
+  <div class="card">
+
+    <div class="card__header">
+      <svg class="mark" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M9 4 C8 4 7.5 5 8 6 L9.5 15 C9.7 16.3 10.5 17 11.5 17 C12.5 17 13.3 16.3 13.5 15 L15 6 C15.5 5 15 4 14 4" stroke="#132A1E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M11.5 17 L11.5 30" stroke="#132A1E" stroke-width="2" stroke-linecap="round"/>
+        <path d="M23 4 C20 4 19 7 19 11 C19 14 20.5 16 23 16 L23 30" stroke="#132A1E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>Kantina <span class="dot">·</span> Store console</h1>
+    </div>
+
+    <form id="signin-form" novalidate>
+
+      <div class="field">
+        <label for="store-account">Store account</label>
+        <input
+          type="text"
+          id="store-account"
+          name="storeAccount"
+          autocomplete="username"
+          placeholder="e.g. stall-14"
+          required
+        >
+        <p class="field__error" id="store-account-error" role="alert"></p>
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="field__input-row">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            required
+          >
+          <button type="button" class="toggle-visibility" id="toggle-password" aria-pressed="false" aria-label="Show password">
+            <svg class="eye-open" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M1 10C1 10 4 4 10 4C16 4 19 10 19 10C19 10 16 16 10 16C4 16 1 10 1 10Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <circle cx="10" cy="10" r="2.6" stroke="currentColor" stroke-width="1.6"/>
+            </svg>
+            <svg class="eye-closed" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M2 2L18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              <path d="M5.6 5.9C3.1 7.4 1 10 1 10C1 10 4 16 10 16C11.6 16 13 15.6 14.1 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8.2 4.2C8.8 4.1 9.4 4 10 4C16 4 19 10 19 10C19 10 18.2 11.6 16.6 13.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <p class="field__error" id="password-error" role="alert"></p>
+      </div>
+
+      <button type="submit" class="btn-primary" id="submit-btn">
+        <span class="btn-primary__label">Sign in</span>
+      </button>
+
+    </form>
+
+    <p class="footnote">Each stall has its own account and sees only its own orders.</p>
+
+  </div>
+</main>
+
+<script>
+// Kantina · Store console — sign-in page behavior
+
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("signin-form");
+  const storeAccountInput = document.getElementById("store-account");
+  const passwordInput = document.getElementById("password");
+  const storeAccountError = document.getElementById("store-account-error");
+  const passwordError = document.getElementById("password-error");
+  const toggleBtn = document.getElementById("toggle-password");
+  const submitBtn = document.getElementById("submit-btn");
+
+  // ---- Show / hide password ----
+  toggleBtn.addEventListener("click", () => {
+    const isPassword = passwordInput.type === "password";
+    passwordInput.type = isPassword ? "text" : "password";
+    toggleBtn.setAttribute("aria-pressed", String(isPassword));
+    toggleBtn.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
+  });
+
+  // ---- Inline validation helpers ----
+  function setError(input, errorEl, message) {
+    errorEl.textContent = message;
+    input.setAttribute("aria-invalid", message ? "true" : "false");
+  }
+
+  function validate() {
+    let valid = true;
+
+    if (!storeAccountInput.value.trim()) {
+      setError(storeAccountInput, storeAccountError, "Enter your store account.");
+      valid = false;
+    } else {
+      setError(storeAccountInput, storeAccountError, "");
+    }
+
+    if (!passwordInput.value) {
+      setError(passwordInput, passwordError, "Enter your password.");
+      valid = false;
+    } else {
+      setError(passwordInput, passwordError, "");
+    }
+
+    return valid;
+  }
+
+  // Clear a field's error as soon as the person starts fixing it
+  [storeAccountInput, passwordInput].forEach((input, i) => {
+    const errorEl = i === 0 ? storeAccountError : passwordError;
+    input.addEventListener("input", () => setError(input, errorEl, ""));
+  });
+
+  // ---- Submit ----
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (!validate()) return;
+
+    setLoading(true);
+
+    try {
+      // TODO: replace with your team's real auth call, e.g.
+      // const res = await fetch("/api/store/sign-in", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({
+      //     storeAccount: storeAccountInput.value.trim(),
+      //     password: passwordInput.value,
+      //   }),
+      // });
+      // if (!res.ok) throw new Error("Invalid store account or password.");
+      // const { redirectTo } = await res.json();
+      // window.location.href = redirectTo;
+
+      await fakeSignIn(storeAccountInput.value.trim(), passwordInput.value);
+      console.log("Signed in — wire this up to your real endpoint.");
+    } catch (err) {
+      setError(passwordInput, passwordError, err.message || "Sign in failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  function setLoading(isLoading) {
+    submitBtn.disabled = isLoading;
+    submitBtn.classList.toggle("is-loading", isLoading);
+  }
+
+  // Placeholder for local testing — delete once a real endpoint exists
+  function fakeSignIn(storeAccount, password) {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        if (storeAccount && password) resolve();
+        else reject(new Error("Invalid store account or password."));
+      }, 700);
+    });
+  }
+});
+</script>
+</body>
+</html>

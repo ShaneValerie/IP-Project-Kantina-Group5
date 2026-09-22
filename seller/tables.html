@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lola's Silog · Tables</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-seller-app page-seller-tables">
+
+<div class="app-shell">
+
+  <header class="app-topbar">
+    <h1>Tables</h1>
+    <span class="context-label">Today \u00B7 Main hall</span>
+  </header>
+
+  <div class="app-body">
+
+    <aside class="sidebar">
+      <nav>
+        <ul id="nav-list">
+          <li><a class="nav-item" href="orders.html">Orders</a></li>
+          <li><a class="nav-item" href="menu.html">Menu</a></li>
+          <li><a class="nav-item" href="analytics.html">Analytics</a></li>
+          <li><a class="nav-item is-active" href="tables.html">Tables</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="nav-item" data-panel="settings">Settings</button>
+      </div>
+    </aside>
+
+    <main class="content" id="content">
+      <div class="schedule">
+        <div class="schedule-row schedule-header" id="schedule-header"></div>
+        <div class="schedule-body" id="schedule-body"></div>
+      </div>
+
+      <p class="schedule-hint">Click a cell to block a table for cleaning or an event.</p>
+
+      <div class="no-shows-card">
+        <h2 id="no-shows-title">No-shows today \u00B7 2</h2>
+        <p>Auto-released after 10 min. Repeat no-shows flagged on the student profile.</p>
+      </div>
+    </main>
+
+    <div class="panel-placeholder" id="panel-placeholder" hidden></div>
+
+  </div>
+
+</div>
+
+<script>
+(function () {
+
+  // ---------------------------------------------------
+  // Data — swap this for real bookings from your backend.
+  // Each slot is "free", "block", or any other label (held,
+  // booked, a guest's name) which renders as a filled cell.
+  // ---------------------------------------------------
+  const timeSlots = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30"];
+
+  let tables = [
+    { id: "T-04", slots: ["free", "held", "booked", "free", "free", "block"] },
+    { id: "T-12", slots: ["free", "free", "Ana R.", "Ana R.", "free", "free"] },
+    { id: "T-15", slots: ["booked", "free", "free", "booked", "free", "free"] },
+  ];
+
+  const headerEl = document.getElementById("schedule-header");
+  const bodyEl = document.getElementById("schedule-body");
+
+  // ---------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------
+  function renderHeader() {
+    headerEl.innerHTML = `<span>Table</span>` +
+      timeSlots.map(t => `<span>${t}</span>`).join("");
+  }
+
+  function render() {
+    bodyEl.innerHTML = "";
+
+    tables.forEach(table => {
+      const row = document.createElement("div");
+      row.className = "schedule-row";
+
+      const label = document.createElement("span");
+      label.className = "table-label";
+      label.textContent = table.id;
+      row.appendChild(label);
+
+      table.slots.forEach((status, slotIndex) => {
+        row.appendChild(buildCell(table.id, slotIndex, status));
+      });
+
+      bodyEl.appendChild(row);
+    });
+  }
+
+  function buildCell(tableId, slotIndex, status) {
+    const isFree = status === "free";
+    const isBlocked = status === "block";
+    const kind = isFree ? "free" : isBlocked ? "block" : "filled";
+
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = `slot-cell slot-cell--${kind}`;
+    cell.textContent = status;
+    cell.dataset.table = tableId;
+    cell.dataset.slot = slotIndex;
+
+    if (kind === "filled") {
+      cell.disabled = true;
+      cell.title = "Live reservation \u2014 manage it from Orders";
+    } else {
+      cell.title = isFree ? "Click to block this slot" : "Click to free this slot";
+    }
+
+    return cell;
+  }
+
+  // ---------------------------------------------------
+  // Click to block / unblock a free slot
+  // ---------------------------------------------------
+  bodyEl.addEventListener("click", (e) => {
+    const cell = e.target.closest(".slot-cell--free, .slot-cell--block");
+    if (!cell) return;
+
+    const table = tables.find(t => t.id === cell.dataset.table);
+    if (!table) return;
+
+    const slotIndex = Number(cell.dataset.slot);
+    table.slots[slotIndex] = table.slots[slotIndex] === "free" ? "block" : "free";
+    // TODO: PATCH this change to your backend, then re-render on success.
+    render();
+  });
+
+  // ---------------------------------------------------
+  // Sidebar nav — every page but Settings is built now
+  // ---------------------------------------------------
+  const navList = document.getElementById("nav-list");
+  const sidebarFooter = document.querySelector(".sidebar-footer");
+  const content = document.getElementById("content");
+  const placeholder = document.getElementById("panel-placeholder");
+
+  [navList, sidebarFooter].forEach(container => {
+    container.addEventListener("click", (e) => {
+      const btn = e.target.closest(".nav-item[data-panel]");
+      if (!btn) return;
+
+      content.hidden = true;
+      placeholder.hidden = false;
+      placeholder.textContent = `${btn.textContent.trim()} is on its way — nothing to see here yet.`;
+    });
+  });
+
+  // ---------------------------------------------------
+  // Init
+  // ---------------------------------------------------
+  renderHeader();
+  render();
+
+})();
+</script>
+</body>
+</html>
