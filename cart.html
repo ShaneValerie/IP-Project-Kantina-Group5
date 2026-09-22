@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your cart — Kantina</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-cart">
+<div class="app-frame" id="screen-cart">
+  <div class="topnav">
+    <div class="topnav-inner">
+      <a class="topnav-brand" href="home.html">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M6 3v8a3 3 0 0 0 3 3v7M6 3v5M9 3v5M6 8h3M17 3c-2 1.2-2 4-2 6 0 1.6.8 2.6 2 3v9" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        Kantina
+      </a>
+      <nav class="topnav-links">
+        <a href="home.html" class="active">Home</a>
+        <a href="#">Reserve</a>
+        <a href="#">Orders</a>
+        <a href="#">Profile</a>
+      </nav>
+      <div class="topnav-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="appbar">
+    <a class="icon-btn" href="stall.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <h1>Your cart</h1>
+  </div>
+  <div class="scroll" style="position:relative;">
+    <div class="cart-body">
+      <div class="cart-layout">
+        <div class="cart-items-col">
+          <div class="cart-stall-label">Lola's Silog</div>
+          <div class="cart-item">
+            <div class="cart-item-top">
+              <strong>1× Tapsilog</strong>
+              <span class="price">₱85</span>
+            </div>
+            <div class="note">+ extra rice · no onions</div>
+            <div class="row-actions">
+              <a class="link-btn" href="item.html">Edit</a>
+              <a class="link-btn remove" href="#">Remove</a>
+            </div>
+          </div>
+
+          <div class="cart-stall-label">Kape Kanto</div>
+          <div class="cart-item">
+            <div class="cart-item-top">
+              <strong>1× Iced coffee</strong>
+              <span class="price">₱60</span>
+            </div>
+            <div class="row-actions">
+              <a class="link-btn" href="#">Edit</a>
+              <a class="link-btn remove" href="#">Remove</a>
+            </div>
+          </div>
+
+          <div class="multi-stall-note">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <span>Multi-stall cart = one payment, separate kitchen tickets per stall.</span>
+          </div>
+        </div>
+
+        <div class="cart-summary-col">
+          <div class="summary-box">
+            <div class="summary-row"><span>Subtotal</span><span>₱145</span></div>
+            <div class="summary-row"><span>Service fee</span><span>₱5</span></div>
+            <div class="summary-row total"><span>Total</span><span>₱150</span></div>
+          </div>
+          <div class="cart-footer">
+            <a class="btn btn-primary" href="#">Checkout</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

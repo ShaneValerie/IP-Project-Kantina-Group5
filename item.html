@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tapsilog — Kantina</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-item">
+<div class="app-frame" id="screen-item">
+  <div class="topnav">
+    <div class="topnav-inner">
+      <a class="topnav-brand" href="home.html">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M6 3v8a3 3 0 0 0 3 3v7M6 3v5M9 3v5M6 8h3M17 3c-2 1.2-2 4-2 6 0 1.6.8 2.6 2 3v9" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        Kantina
+      </a>
+      <nav class="topnav-links">
+        <a href="home.html" class="active">Home</a>
+        <a href="#">Reserve</a>
+        <a href="#">Orders</a>
+        <a href="#">Profile</a>
+      </nav>
+      <div class="topnav-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="appbar">
+    <a class="icon-btn" href="stall.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <h1>Tapsilog</h1>
+  </div>
+  <div class="scroll" style="position:relative;">
+    <div class="item-layout">
+      <div class="item-photo">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 3v8a2.5 2.5 0 0 0 2.5 2.5V21M6 3v5M8.5 3v5M6 6.5h2.5M17 3c-1.6 1-1.6 3.5-1.6 5.2 0 1.4.7 2.3 1.6 2.6V21" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="item-body">
+        <h2>Tapsilog</h2>
+        <p class="item-price">₱85</p>
+        <p class="item-desc">Marinated beef tapa, garlic fried rice, and a sunny-side-up egg. Served with atchara on the side.</p>
+
+        <div class="addon-row">
+          <div class="addon-text"><strong>Extra rice</strong><span>+₱15</span></div>
+          <div class="toggle"></div>
+        </div>
+        <div class="addon-row">
+          <div class="addon-text"><strong>Fried egg</strong><span>+₱12</span></div>
+          <div class="toggle"></div>
+        </div>
+
+        <div class="note-field">
+          <label for="note">Note to kitchen</label>
+          <textarea id="note" placeholder="e.g. no onions, sauce on the side"></textarea>
+        </div>
+
+        <div class="item-footer">
+          <div class="stepper">
+            <button type="button">−</button>
+            <span>1</span>
+            <button type="button">+</button>
+          </div>
+          <a class="btn btn-primary" style="flex:1;" href="stall.html">Add · ₱85</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
