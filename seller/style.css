@@ -1,8 +1,3 @@
-/* ---------------------------------------------------
-   Kantina · Seller / store console — styles
-   Same color tokens and font stack as the student-facing
-   style.css, kept as its own file for the seller/ pages.
---------------------------------------------------- */
 :root{
   --green:#015E2F;
   --green-deep:#014A25;
@@ -34,7 +29,6 @@ body{
 a{ text-decoration:none; color:inherit; }
 button, input, textarea{ font-family:inherit; }
 
-/* ---------- Seller login (seller/login.html) ---------- */
 .page-seller-login{
   --seller-ink:var(--ink);
   --seller-paper:var(--page-bg);
@@ -256,7 +250,6 @@ button, input, textarea{ font-family:inherit; }
   }
 }
 
-/* ---------- Seller console shell (seller/orders.html, menu.html, analytics.html, tables.html) ---------- */
 .page-seller-app{
   --seller-ink:var(--ink);
   --seller-paper:var(--page-bg);
@@ -369,9 +362,6 @@ button, input, textarea{ font-family:inherit; }
   padding:40px;
 }
 
-/* Author rules that set display on these elements otherwise beat the
-   browser's default [hidden]{display:none}, leaving them visible (and
-   still taking up flex space) even while hidden. */
 .page-seller-app .panel-placeholder[hidden]{ display:none; }
 
 @media (max-width:860px){
@@ -416,7 +406,6 @@ button, input, textarea{ font-family:inherit; }
   .page-seller-app .content{ padding:16px; }
 }
 
-/* ---- Orders board (seller/orders.html) ---- */
 .page-seller-orders .topbar-right{
   display:flex;
   align-items:center;
@@ -597,7 +586,6 @@ button, input, textarea{ font-family:inherit; }
   .page-seller-orders .user-menu__trigger svg{ transition:none; }
 }
 
-/* ---- Menu management (seller/menu.html) ---- */
 .page-seller-menu .btn-add{
   border:none;
   border-radius:var(--seller-radius-btn);
@@ -863,7 +851,6 @@ button, input, textarea{ font-family:inherit; }
   .page-seller-menu .switch .track{ transition:none; }
 }
 
-/* ---- Analytics (seller/analytics.html) ---- */
 .page-seller-analytics .segmented{ display:flex; gap:10px; }
 
 .page-seller-analytics .segmented button{
@@ -984,7 +971,6 @@ button, input, textarea{ font-family:inherit; }
   .page-seller-analytics .bar{ transition:none; }
 }
 
-/* ---- Tables & slots (seller/tables.html) ---- */
 .page-seller-tables .context-label{
   font-size:0.9rem;
   color:var(--seller-muted);
