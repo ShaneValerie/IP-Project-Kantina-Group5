@@ -72,7 +72,6 @@
 </main>
 
 <script>
-// Kantina · Store console — sign-in page behavior
 
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("signin-form");
@@ -83,7 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("toggle-password");
   const submitBtn = document.getElementById("submit-btn");
 
-  // ---- Show / hide password ----
   toggleBtn.addEventListener("click", () => {
     const isPassword = passwordInput.type === "password";
     passwordInput.type = isPassword ? "text" : "password";
@@ -91,7 +89,6 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleBtn.setAttribute("aria-label", isPassword ? "Hide password" : "Show password");
   });
 
-  // ---- Inline validation helpers ----
   function setError(input, errorEl, message) {
     errorEl.textContent = message;
     input.setAttribute("aria-invalid", message ? "true" : "false");
@@ -117,13 +114,11 @@ document.addEventListener("DOMContentLoaded", () => {
     return valid;
   }
 
-  // Clear a field's error as soon as the person starts fixing it
   [storeAccountInput, passwordInput].forEach((input, i) => {
     const errorEl = i === 0 ? storeAccountError : passwordError;
     input.addEventListener("input", () => setError(input, errorEl, ""));
   });
 
-  // ---- Submit ----
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -132,18 +127,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setLoading(true);
 
     try {
-      // TODO: replace with your team's real auth call, e.g.
-      // const res = await fetch("/api/store/sign-in", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({
-      //     storeAccount: storeAccountInput.value.trim(),
-      //     password: passwordInput.value,
-      //   }),
-      // });
-      // if (!res.ok) throw new Error("Invalid store account or password.");
-      // const { redirectTo } = await res.json();
-      // window.location.href = redirectTo;
 
       await fakeSignIn(storeAccountInput.value.trim(), passwordInput.value);
       console.log("Signed in — wire this up to your real endpoint.");
@@ -159,7 +142,6 @@ document.addEventListener("DOMContentLoaded", () => {
     submitBtn.classList.toggle("is-loading", isLoading);
   }
 
-  // Placeholder for local testing — delete once a real endpoint exists
   function fakeSignIn(storeAccount, password) {
     return new Promise((resolve, reject) => {
       setTimeout(() => {

@@ -51,8 +51,7 @@
     </aside>
 
     <main class="board" id="board" aria-live="polite">
-      <!-- columns are rendered here by script -->
-    </main>
+          </main>
 
     <div class="panel-placeholder" id="panel-placeholder" hidden></div>
 
@@ -63,9 +62,6 @@
 <script>
 (function () {
 
-  // ---------------------------------------------------
-  // Data — swap this for real orders from your backend
-  // ---------------------------------------------------
   const COLUMNS = [
     { status: "pending",    label: "Pending" },
     { status: "paid",       label: "Paid" },
@@ -88,9 +84,6 @@
 
   const board = document.getElementById("board");
 
-  // ---------------------------------------------------
-  // Rendering
-  // ---------------------------------------------------
   function render() {
     board.innerHTML = "";
 
@@ -130,8 +123,6 @@
     card.className = "card";
     card.dataset.id = order.id;
 
-    // In "preparing", only the front of the queue is actionable —
-    // the kitchen works one ticket at a time. Later ones just wait.
     const isQueuedPrep = status === "preparing" && indexInColumn > 0;
     if (status === "preparing" && indexInColumn === 0) card.classList.add("is-active");
     if (isQueuedPrep) card.classList.add("is-queued");
@@ -167,10 +158,6 @@
     return null;
   }
 
-  // ---------------------------------------------------
-  // Order transitions — replace the meta text generators
-  // with real data from your API as you wire this up
-  // ---------------------------------------------------
   function findOrder(id) {
     return orders.find(o => o.id === id);
   }
@@ -208,9 +195,6 @@
     handleAction(btn.dataset.action, Number(btn.dataset.id));
   });
 
-  // ---------------------------------------------------
-  // Sidebar nav — only "Orders" has a real view for now
-  // ---------------------------------------------------
   const navList = document.getElementById("nav-list");
   const sidebarFooter = document.querySelector(".sidebar-footer");
   const placeholder = document.getElementById("panel-placeholder");
@@ -232,17 +216,12 @@
 
   [navList, sidebarFooter].forEach(container => {
     container.addEventListener("click", (e) => {
-      // Only Settings still carries data-panel and gets intercepted
-      // here — every other nav item is a real link to its own page.
       const btn = e.target.closest(".nav-item[data-panel]");
       if (!btn) return;
       setActivePanel(btn.dataset.panel, btn.textContent.trim());
     });
   });
 
-  // ---------------------------------------------------
-  // User menu dropdown
-  // ---------------------------------------------------
   const userMenu = document.getElementById("user-menu");
   const userMenuTrigger = document.getElementById("user-menu-trigger");
 
@@ -257,9 +236,6 @@
     userMenuTrigger.setAttribute("aria-expanded", "false");
   });
 
-  // ---------------------------------------------------
-  // Init
-  // ---------------------------------------------------
   render();
 
 })();
