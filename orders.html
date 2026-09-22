@@ -1,106 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>My orders · Kantina</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My orders — Kantina</title>
+<link rel="stylesheet" href="style.css">
 </head>
-<body>
-
-  <nav class="navbar">
-    <button class="back" type="button" aria-label="Go back" onclick="history.back()">←</button>
-    <div class="navbar-brand">
-      <div class="navbar-logo">K</div>
-      <div>
-        <div style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;">My orders</div>
-        <div class="navbar-sub">Kantina</div>
+<body class="page-orders">
+<div class="app-frame" id="screen-orders">
+  <div class="topnav">
+    <div class="topnav-inner">
+      <a class="topnav-brand" href="home.html">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M6 3v8a3 3 0 0 0 3 3v7M6 3v5M9 3v5M6 8h3M17 3c-2 1.2-2 4-2 6 0 1.6.8 2.6 2 3v9" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        Kantina
+      </a>
+      <nav class="topnav-links"></nav>
+      <div class="topnav-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        </a>
       </div>
     </div>
-  </nav>
+  </div>
+  <div class="appbar">
+    <button class="icon-btn" type="button" aria-label="Go back" onclick="history.back()">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>My orders</h1>
+  </div>
 
-  <main class="page" role="main">
+  <div class="scroll">
+    <div class="flow-body no-footer">
 
-    <div class="tabs" role="tablist" aria-label="Order filter" id="order-tabs">
-      <button class="tab" type="button" role="tab" aria-selected="true" data-tab="active">Active</button>
-      <button class="tab" type="button" role="tab" aria-selected="false" data-tab="history">History</button>
-    </div>
-
-    <div id="active-panel" role="tabpanel">
-
-      <div class="order-card">
-        <div class="order-card-top">
-          <div>
-            <div class="order-card-title">#KTN-90214</div>
-            <div class="order-card-sub">Lola's Silog · pickup 11:30</div>
-          </div>
-          <span class="badge badge-preparing">Preparing</span>
-        </div>
-        <div class="progress" aria-label="Order progress: step 2 of 4" aria-hidden="true">
-          <span class="filled"></span>
-          <span class="filled"></span>
-          <span></span>
-          <span></span>
-        </div>
+      <div class="seg-tabs" role="tablist" aria-label="Order filter" id="order-tabs">
+        <button class="tab-btn" type="button" role="tab" aria-selected="true" data-tab="active">Active</button>
+        <button class="tab-btn" type="button" role="tab" aria-selected="false" data-tab="history">History</button>
       </div>
 
-      <div class="order-card">
-        <div class="order-card-top">
-          <div>
-            <div class="order-card-title">#KTN-90213</div>
-            <div class="order-card-sub">Kape Kanto · counter 2</div>
-          </div>
-          <span class="badge badge-ready">Ready ✓</span>
-        </div>
+      <div id="active-panel" role="tabpanel" style="margin-top:18px;">
+        <p class="section-label" id="earlier-heading" style="margin-top:22px;">Earlier today</p>
+        <div id="earlier-slot"></div>
       </div>
 
-      <p class="list-heading" id="earlier-heading">Earlier today</p>
-
-      <div class="order-card order-card-muted" id="earlier-card">
-        <div class="order-card-top">
-          <div>
-            <div class="order-card-title">#KTN-90180</div>
-            <div class="order-card-sub">Lola's Silog · Table 12</div>
-          </div>
-          <span class="badge badge-completed">Done</span>
-        </div>
-        <button class="card-link" type="button" onclick="showToast('Would open order rating')">Rate this order →</button>
-      </div>
+      <div id="history-panel" role="tabpanel" hidden style="margin-top:18px;"></div>
 
     </div>
 
-    <div id="history-panel" role="tabpanel" hidden>
-
-      <div class="order-card order-card-muted">
-        <div class="order-card-top">
-          <div>
-            <div class="order-card-title">#KTN-90180</div>
-            <div class="order-card-sub">Lola's Silog · ₱150</div>
-          </div>
-          <span class="badge badge-completed">Done</span>
-        </div>
-        <button class="card-link" type="button" onclick="showToast('Would open order rating')">Rate this order →</button>
-      </div>
-
-      <div class="order-card order-card-muted">
-        <div class="order-card-top">
-          <div>
-            <div class="order-card-title">#KTN-90155</div>
-            <div class="order-card-sub">Kape Kanto · ₱60</div>
-          </div>
-          <span class="badge badge-completed">Done</span>
-        </div>
-        <button class="card-link" type="button" onclick="showToast('Would open order rating')">Rate this order →</button>
-      </div>
-
-    </div>
-
-  </main>
-
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+</div>
+<script src="app.js"></script>
 </body>
 </html>

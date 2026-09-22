@@ -1,112 +1,98 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Checkout · Kantina</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Checkout — Kantina</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
-<body>
-
-  <nav class="navbar">
-    <button class="back" type="button" aria-label="Go back" onclick="history.back()">←</button>
-    <div class="navbar-brand">
-      <div class="navbar-logo">K</div>
-      <div>
-        <div class="navbar h1" style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;">Checkout</div>
-        <div class="navbar-sub">Kantina</div>
+<body class="page-checkout">
+<div class="app-frame" id="screen-checkout">
+  <div class="topnav">
+    <div class="topnav-inner">
+      <a class="topnav-brand" href="home.html">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M6 3v8a3 3 0 0 0 3 3v7M6 3v5M9 3v5M6 8h3M17 3c-2 1.2-2 4-2 6 0 1.6.8 2.6 2 3v9" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        Kantina
+      </a>
+      <nav class="topnav-links"></nav>
+      <div class="topnav-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        </a>
       </div>
     </div>
-  </nav>
+  </div>
+  <div class="appbar">
+    <button class="icon-btn" type="button" aria-label="Go back" onclick="history.back()">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <h1>Checkout</h1>
+  </div>
 
-  <main class="page" role="main">
+  <div class="scroll" style="position:relative;">
+    <div class="flow-body">
 
-    <!-- Pickup time -->
-    <section class="card">
-      <h2 class="section-label">Pickup time</h2>
-
-      <p class="hint" style="margin:0 0 6px;">Morning</p>
-      <div class="slot-grid pickup-grid" role="group" aria-label="Morning pickup time">
-        <button class="slot" type="button" data-time="8:00" aria-pressed="false">8:00</button>
-        <button class="slot" type="button" data-time="8:15" aria-pressed="false">8:15</button>
-        <button class="slot" type="button" disabled aria-disabled="true">8:30</button>
-        <button class="slot" type="button" data-time="8:45" aria-pressed="false">8:45</button>
-        <button class="slot" type="button" data-time="9:00" aria-pressed="false">9:00</button>
-        <button class="slot" type="button" data-time="9:15" aria-pressed="false">9:15</button>
+      <!-- Pickup time -->
+      <div class="section-block">
+        <h2 class="section-label">Pickup time</h2>
+        <div id="pickup-slots"></div>
+        <p class="slot-note">Greyed slots are at kitchen capacity</p>
       </div>
 
-      <p class="hint" style="margin:14px 0 6px;">Lunch</p>
-      <div class="slot-grid pickup-grid" role="group" aria-label="Lunch pickup time">
-        <button class="slot" type="button" data-time="11:30" aria-pressed="true">11:30</button>
-        <button class="slot" type="button" data-time="11:45" aria-pressed="false">11:45</button>
-        <button class="slot" type="button" data-time="12:00" aria-pressed="false">12:00</button>
-        <button class="slot" type="button" data-time="12:15" aria-pressed="false">12:15</button>
-        <button class="slot" type="button" disabled aria-disabled="true">12:30</button>
-        <button class="slot" type="button" data-time="12:45" aria-pressed="false">12:45</button>
-      </div>
-
-      <p class="hint" style="margin:14px 0 6px;">Afternoon</p>
-      <div class="slot-grid pickup-grid" role="group" aria-label="Afternoon pickup time">
-        <button class="slot" type="button" data-time="2:00" aria-pressed="false">2:00</button>
-        <button class="slot" type="button" data-time="2:15" aria-pressed="false">2:15</button>
-        <button class="slot" type="button" data-time="2:30" aria-pressed="false">2:30</button>
-        <button class="slot" type="button" disabled aria-disabled="true">2:45</button>
-        <button class="slot" type="button" data-time="3:00" aria-pressed="false">3:00</button>
-        <button class="slot" type="button" data-time="3:15" aria-pressed="false">3:15</button>
-      </div>
-
-      <p class="hint">Greyed slots are at kitchen capacity</p>
-    </section>
-
-    <!-- Table -->
-    <section class="card">
-      <h2 class="section-label">Table</h2>
-      <div class="table-row">
-        <div class="table-meta">
-          <span class="table-name" id="table-info">Table 12</span>
-          <span class="table-time">12:00 – 12:45 · Dine-in</span>
-        </div>
-        <button class="change-btn" type="button" onclick="showToast('Would open Reserve a table')">Change</button>
-      </div>
-    </section>
-
-    <!-- Payment -->
-    <section class="card">
-      <h2 class="section-label">Payment method</h2>
-      <div class="pay-options" id="payment-group" role="radiogroup" aria-label="Payment method">
-        <div class="pay-option" data-value="gcash" role="radio" aria-checked="true" tabindex="0">
-          <span class="radio"></span>
-          <div class="pay-label">
-            <img src="gcash-logo.png" alt="GCash" style="height:20px; object-fit:contain; display:block;">
-            <span>Pay instantly via GCash</span>
+      <!-- Table -->
+      <div class="section-block">
+        <h2 class="section-label">Table</h2>
+        <div class="info-row">
+          <div class="info-main">
+            <strong id="table-name"></strong>
+            <span id="table-detail"></span>
           </div>
+          <button class="chip" type="button" onclick="showToast('Would open Reserve a table')">Change</button>
         </div>
-        <div class="pay-option" data-value="counter" role="radio" aria-checked="false" tabindex="0">
-          <span class="radio"></span>
-          <div class="pay-label">
-            <strong>Pay at counter</strong>
-            <span>Cash or card when you pick up</span>
+      </div>
+
+      <!-- Payment -->
+      <div class="section-block">
+        <h2 class="section-label">Payment method</h2>
+        <div class="option-list" id="payment-group" role="radiogroup" aria-label="Payment method">
+          <div class="option-row" data-value="gcash" role="radio" aria-checked="true" tabindex="0">
+            <span class="option-radio"></span>
+            <div class="option-icon">
+              <img src="gcash-logo.png" alt="GCash" style="width:30px;height:30px;border-radius:8px;object-fit:contain;display:block;">
+            </div>
+            <div class="option-text">
+              <strong>Pay instantly via GCash</strong>
+            </div>
+          </div>
+          <div class="option-row" data-value="counter" role="radio" aria-checked="false" tabindex="0">
+            <span class="option-radio"></span>
+            <div class="option-icon">
+              <i class="fa-solid fa-hand-holding-dollar" style="font-size:18px;color:var(--ink-soft);"></i>
+            </div>
+            <div class="option-text">
+              <strong>Pay at counter</strong>
+              <span>Cash or scan when you pick up</span>
+            </div>
           </div>
         </div>
       </div>
-    </section>
 
-  </main>
-
-  <footer class="footer">
-    <div class="footer-inner">
-      <div class="order-summary">
-        <span class="total">₱150</span>
-        <span class="items">3 items · Table 12</span>
-      </div>
-      <button class="pay-btn" type="button" id="pay-btn" onclick="handlePay()">Pay ₱150 →</button>
     </div>
-  </footer>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js"></script>
+    <div class="sticky-footer">
+      <div class="pay-row">
+        <div class="pay-total">
+          <strong id="checkout-total"></strong>
+          <span id="checkout-summary"></span>
+        </div>
+        <button class="btn btn-primary btn-compact" type="button" id="pay-btn" onclick="handlePay()"></button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+</div>
+<script src="app.js"></script>
 </body>
 </html>

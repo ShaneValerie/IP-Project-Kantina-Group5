@@ -40,8 +40,7 @@
       </div>
 
       <div class="item-list" id="item-list" aria-live="polite">
-        <!-- rows rendered by script -->
-      </div>
+              </div>
 
       <p class="list-footnote">Toggling off hides the item from students immediately.</p>
     </main>
@@ -52,7 +51,6 @@
 
 </div>
 
-<!-- Add item modal -->
 <div class="modal-backdrop" id="modal-backdrop" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <h2 id="modal-title">Add item</h2>
@@ -86,9 +84,6 @@
 <script>
 (function () {
 
-  // ---------------------------------------------------
-  // Data — swap this for real menu items from your backend
-  // ---------------------------------------------------
   let items = [
     { id: 1, name: "Tapsilog",  price: 85, stock: 24, available: true },
     { id: 2, name: "Longsilog", price: 75, stock: 11, available: true },
@@ -97,9 +92,6 @@
 
   const itemList = document.getElementById("item-list");
 
-  // ---------------------------------------------------
-  // Rendering
-  // ---------------------------------------------------
   function render() {
     itemList.innerHTML = "";
 
@@ -152,9 +144,6 @@
     return div.innerHTML;
   }
 
-  // ---------------------------------------------------
-  // Availability toggle
-  // ---------------------------------------------------
   itemList.addEventListener("change", (e) => {
     const checkbox = e.target.closest('input[type="checkbox"][data-id]');
     if (!checkbox) return;
@@ -163,14 +152,9 @@
     if (!item) return;
 
     item.available = checkbox.checked;
-    // TODO: fire off a PATCH to your backend here, then re-render
-    // on success (or roll back the checkbox on failure).
     render();
   });
 
-  // ---------------------------------------------------
-  // Add item modal
-  // ---------------------------------------------------
   const backdrop = document.getElementById("modal-backdrop");
   const form = document.getElementById("add-item-form");
   const addBtn = document.getElementById("add-item-btn");
@@ -224,14 +208,8 @@
 
     closeModal();
     render();
-    // TODO: POST the new item to your backend instead of just
-    // pushing it into local state.
   });
 
-  // ---------------------------------------------------
-  // Sidebar nav — Orders/Menu/Analytics/Tables are real pages;
-  // Settings is a placeholder until that page exists
-  // ---------------------------------------------------
   const navList = document.getElementById("nav-list");
   const sidebarFooter = document.querySelector(".sidebar-footer");
   const content = document.getElementById("content");
@@ -256,9 +234,6 @@
     });
   });
 
-  // ---------------------------------------------------
-  // Init
-  // ---------------------------------------------------
   render();
 
 })();

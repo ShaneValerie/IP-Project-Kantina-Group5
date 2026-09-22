@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Checkout · Kantina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="my-style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <button class="back" type="button" aria-label="Go back" onclick="history.back()">←</button>
+    <div class="navbar-brand">
+      <div class="navbar-logo">K</div>
+      <div>
+        <div class="navbar h1" style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;">Checkout</div>
+        <div class="navbar-sub">Kantina</div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page" role="main">
+
+    <!-- Pickup time -->
+    <section class="card">
+      <h2 class="section-label">Pickup time</h2>
+
+      <p class="hint" style="margin:0 0 6px;">Morning</p>
+      <div class="slot-grid pickup-grid" role="group" aria-label="Morning pickup time">
+        <button class="slot" type="button" data-time="8:00" aria-pressed="false">8:00</button>
+        <button class="slot" type="button" data-time="8:15" aria-pressed="false">8:15</button>
+        <button class="slot" type="button" disabled aria-disabled="true">8:30</button>
+        <button class="slot" type="button" data-time="8:45" aria-pressed="false">8:45</button>
+        <button class="slot" type="button" data-time="9:00" aria-pressed="false">9:00</button>
+        <button class="slot" type="button" data-time="9:15" aria-pressed="false">9:15</button>
+      </div>
+
+      <p class="hint" style="margin:14px 0 6px;">Lunch</p>
+      <div class="slot-grid pickup-grid" role="group" aria-label="Lunch pickup time">
+        <button class="slot" type="button" data-time="11:30" aria-pressed="true">11:30</button>
+        <button class="slot" type="button" data-time="11:45" aria-pressed="false">11:45</button>
+        <button class="slot" type="button" data-time="12:00" aria-pressed="false">12:00</button>
+        <button class="slot" type="button" data-time="12:15" aria-pressed="false">12:15</button>
+        <button class="slot" type="button" disabled aria-disabled="true">12:30</button>
+        <button class="slot" type="button" data-time="12:45" aria-pressed="false">12:45</button>
+      </div>
+
+      <p class="hint" style="margin:14px 0 6px;">Afternoon</p>
+      <div class="slot-grid pickup-grid" role="group" aria-label="Afternoon pickup time">
+        <button class="slot" type="button" data-time="2:00" aria-pressed="false">2:00</button>
+        <button class="slot" type="button" data-time="2:15" aria-pressed="false">2:15</button>
+        <button class="slot" type="button" data-time="2:30" aria-pressed="false">2:30</button>
+        <button class="slot" type="button" disabled aria-disabled="true">2:45</button>
+        <button class="slot" type="button" data-time="3:00" aria-pressed="false">3:00</button>
+        <button class="slot" type="button" data-time="3:15" aria-pressed="false">3:15</button>
+      </div>
+
+      <p class="hint">Greyed slots are at kitchen capacity</p>
+    </section>
+
+    <!-- Table -->
+    <section class="card">
+      <h2 class="section-label">Table</h2>
+      <div class="table-row">
+        <div class="table-meta">
+          <span class="table-name" id="table-info">Table 12</span>
+          <span class="table-time">12:00 – 12:45 · Dine-in</span>
+        </div>
+        <button class="change-btn" type="button" onclick="showToast('Would open Reserve a table')">Change</button>
+      </div>
+    </section>
+
+    <!-- Payment -->
+    <section class="card">
+      <h2 class="section-label">Payment method</h2>
+      <div class="pay-options" id="payment-group" role="radiogroup" aria-label="Payment method">
+        <div class="pay-option" data-value="gcash" role="radio" aria-checked="true" tabindex="0">
+          <span class="radio"></span>
+          <div class="pay-label">
+            <img src="gcash-logo.png" alt="GCash" style="height:20px; object-fit:contain; display:block;">
+            <span>Pay instantly via GCash</span>
+          </div>
+        </div>
+        <div class="pay-option" data-value="counter" role="radio" aria-checked="false" tabindex="0">
+          <span class="radio"></span>
+          <div class="pay-label">
+            <strong>Pay at counter</strong>
+            <span>Cash or card when you pick up</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="order-summary">
+        <span class="total">₱150</span>
+        <span class="items">3 items · Table 12</span>
+      </div>
+      <button class="pay-btn" type="button" id="pay-btn" onclick="handlePay()">Pay ₱150 →</button>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

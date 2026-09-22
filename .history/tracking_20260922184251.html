@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>#KTN-90214 · Kantina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <button class="back" type="button" aria-label="Go back" onclick="history.back()">←</button>
+    <div class="navbar-brand">
+      <div class="navbar-logo">K</div>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;">#KTN-90214</div>
+        <div class="navbar-sub">Order tracking</div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page" role="main">
+
+    <!-- Status -->
+    <section class="card">
+      <p class="status-title">Preparing</p>
+      <p class="status-sub">Ready in about 6 minutes</p>
+      <div class="progress" style="margin-top:16px;" aria-label="Order progress: step 3 of 5" aria-hidden="true">
+        <span class="filled"></span>
+        <span class="filled"></span>
+        <span class="filled"></span>
+        <span></span>
+        <span></span>
+      </div>
+    </section>
+
+    <!-- Timeline -->
+    <section class="card">
+      <h2 class="section-label">Timeline</h2>
+      <div class="timeline">
+        <div class="timeline-step">
+          <span class="timeline-dot" aria-hidden="true"></span>
+          <div class="timeline-title">Order placed</div>
+          <div class="timeline-sub">11:04</div>
+        </div>
+        <div class="timeline-step">
+          <span class="timeline-dot" aria-hidden="true"></span>
+          <div class="timeline-title">Payment confirmed</div>
+          <div class="timeline-sub">11:04 · GCash</div>
+        </div>
+        <div class="timeline-step">
+          <span class="timeline-dot" aria-hidden="true"></span>
+          <div class="timeline-title">Preparing</div>
+          <div class="timeline-sub">11:06 · Lola's Silog</div>
+        </div>
+        <div class="timeline-step pending">
+          <span class="timeline-dot" aria-hidden="true"></span>
+          <div class="timeline-title">Ready for pickup</div>
+        </div>
+        <div class="timeline-step pending">
+          <span class="timeline-dot" aria-hidden="true"></span>
+          <div class="timeline-title">Completed</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QR -->
+    <section class="card">
+      <h2 class="section-label">Pickup</h2>
+      <div class="qr-row">
+        <div class="qr-mini" aria-hidden="true">QR</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);">Counter 2</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:3px;">Show this QR when collecting your order</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner" style="flex-direction:column; align-items:stretch;">
+      <button class="pay-btn pay-btn-full" type="button" onclick="messageStall()">Message stall</button>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

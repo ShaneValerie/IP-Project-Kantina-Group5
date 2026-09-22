@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>My orders · Kantina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <button class="back" type="button" aria-label="Go back" onclick="history.back()">←</button>
+    <div class="navbar-brand">
+      <div class="navbar-logo">K</div>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;">My orders</div>
+        <div class="navbar-sub">Kantina</div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page" role="main">
+
+    <div class="tabs" role="tablist" aria-label="Order filter" id="order-tabs">
+      <button class="tab" type="button" role="tab" aria-selected="true" data-tab="active">Active</button>
+      <button class="tab" type="button" role="tab" aria-selected="false" data-tab="history">History</button>
+    </div>
+
+    <div id="active-panel" role="tabpanel">
+
+      <div class="order-card">
+        <div class="order-card-top">
+          <div>
+            <div class="order-card-title">#KTN-90214</div>
+            <div class="order-card-sub">Lola's Silog · pickup 11:30</div>
+          </div>
+          <span class="badge badge-preparing">Preparing</span>
+        </div>
+        <div class="progress" aria-label="Order progress: step 2 of 4" aria-hidden="true">
+          <span class="filled"></span>
+          <span class="filled"></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+
+      <div class="order-card">
+        <div class="order-card-top">
+          <div>
+            <div class="order-card-title">#KTN-90213</div>
+            <div class="order-card-sub">Kape Kanto · counter 2</div>
+          </div>
+          <span class="badge badge-ready">Ready ✓</span>
+        </div>
+      </div>
+
+      <p class="list-heading" id="earlier-heading">Earlier today</p>
+
+      <div class="order-card order-card-muted" id="earlier-card">
+        <div class="order-card-top">
+          <div>
+            <div class="order-card-title">#KTN-90180</div>
+            <div class="order-card-sub">Lola's Silog · Table 12</div>
+          </div>
+          <span class="badge badge-completed">Done</span>
+        </div>
+        <button class="card-link" type="button" onclick="showToast('Would open order rating')">Rate this order →</button>
+      </div>
+
+    </div>
+
+    <div id="history-panel" role="tabpanel" hidden>
+
+      <div class="order-card order-card-muted">
+        <div class="order-card-top">
+          <div>
+            <div class="order-card-title">#KTN-90180</div>
+            <div class="order-card-sub">Lola's Silog · ₱150</div>
+          </div>
+          <span class="badge badge-completed">Done</span>
+        </div>
+        <button class="card-link" type="button" onclick="showToast('Would open order rating')">Rate this order →</button>
+      </div>
+
+      <div class="order-card order-card-muted">
+        <div class="order-card-top">
+          <div>
+            <div class="order-card-title">#KTN-90155</div>
+            <div class="order-card-sub">Kape Kanto · ₱60</div>
+          </div>
+          <span class="badge badge-completed">Done</span>
+        </div>
+        <button class="card-link" type="button" onclick="showToast('Would open order rating')">Rate this order →</button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

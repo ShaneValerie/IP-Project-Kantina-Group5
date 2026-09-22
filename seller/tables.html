@@ -54,11 +54,6 @@
 <script>
 (function () {
 
-  // ---------------------------------------------------
-  // Data — swap this for real bookings from your backend.
-  // Each slot is "free", "block", or any other label (held,
-  // booked, a guest's name) which renders as a filled cell.
-  // ---------------------------------------------------
   const timeSlots = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30"];
 
   let tables = [
@@ -70,9 +65,6 @@
   const headerEl = document.getElementById("schedule-header");
   const bodyEl = document.getElementById("schedule-body");
 
-  // ---------------------------------------------------
-  // Rendering
-  // ---------------------------------------------------
   function renderHeader() {
     headerEl.innerHTML = `<span>Table</span>` +
       timeSlots.map(t => `<span>${t}</span>`).join("");
@@ -120,9 +112,6 @@
     return cell;
   }
 
-  // ---------------------------------------------------
-  // Click to block / unblock a free slot
-  // ---------------------------------------------------
   bodyEl.addEventListener("click", (e) => {
     const cell = e.target.closest(".slot-cell--free, .slot-cell--block");
     if (!cell) return;
@@ -132,13 +121,9 @@
 
     const slotIndex = Number(cell.dataset.slot);
     table.slots[slotIndex] = table.slots[slotIndex] === "free" ? "block" : "free";
-    // TODO: PATCH this change to your backend, then re-render on success.
     render();
   });
 
-  // ---------------------------------------------------
-  // Sidebar nav — every page but Settings is built now
-  // ---------------------------------------------------
   const navList = document.getElementById("nav-list");
   const sidebarFooter = document.querySelector(".sidebar-footer");
   const content = document.getElementById("content");
@@ -155,9 +140,6 @@
     });
   });
 
-  // ---------------------------------------------------
-  // Init
-  // ---------------------------------------------------
   renderHeader();
   render();
 

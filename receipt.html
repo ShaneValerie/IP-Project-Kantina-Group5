@@ -1,72 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Order placed · Kantina</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order placed — Kantina</title>
+<link rel="stylesheet" href="style.css">
 </head>
-<body>
-
-  <nav class="navbar">
-    <div class="navbar-brand" style="justify-content:center;">
-      <div class="navbar-logo">K</div>
-      <div>
-        <div style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;">Order placed</div>
-        <div class="navbar-sub">Kantina</div>
+<body class="page-receipt">
+<div class="app-frame" id="screen-receipt">
+  <div class="topnav">
+    <div class="topnav-inner">
+      <a class="topnav-brand" href="home.html">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M6 3v8a3 3 0 0 0 3 3v7M6 3v5M9 3v5M6 8h3M17 3c-2 1.2-2 4-2 6 0 1.6.8 2.6 2 3v9" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        Kantina
+      </a>
+      <nav class="topnav-links"></nav>
+      <div class="topnav-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        </a>
       </div>
     </div>
-  </nav>
+  </div>
+  <div class="appbar centered">
+    <h1>Order placed</h1>
+  </div>
 
-  <main class="page" role="main">
+  <div class="scroll" style="position:relative;">
+    <div class="flow-body stacked-footer">
 
-    <!-- Success hero -->
-    <section class="card">
-      <div class="success-hero">
-        <div class="success-icon" aria-hidden="true">✓</div>
-        <p class="success-title">You're all set!</p>
-        <p class="success-sub">Ref #KTN-90214 · Pickup at 11:30</p>
-        <div class="qr-box" aria-label="Pickup QR code">QR code</div>
-        <p style="font-size:12px; color:var(--ink-soft); margin-top:10px;">Show this at the counter</p>
-      </div>
-    </section>
-
-    <!-- Order summary -->
-    <section class="card">
-      <h2 class="section-label">Order summary</h2>
-      <div class="summary-list">
-        <div class="summary-row">
-          <span>Lola's Silog</span>
-          <span>₱85</span>
-        </div>
-        <div class="summary-row">
-          <span>Kape Kanto</span>
-          <span>₱60</span>
-        </div>
-        <div class="summary-row">
-          <span style="color:var(--ink-soft);">Service fee</span>
-          <span style="color:var(--ink-soft);">₱5</span>
-        </div>
-        <div class="summary-row total">
-          <span>Total paid</span>
-          <span>₱150</span>
+      <!-- Success hero -->
+      <div class="section-block">
+        <div class="success-hero">
+          <div class="success-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <p class="success-title">You're all set!</p>
+          <p class="success-sub" id="receipt-ref"></p>
+          <div class="qr-box" aria-label="Pickup QR code">QR code</div>
+          <p class="qr-box-note">Show this at the counter</p>
         </div>
       </div>
-    </section>
 
-  </main>
+      <!-- Order summary -->
+      <div class="section-block">
+        <h2 class="section-label">Order summary</h2>
+        <div class="summary-box" id="receipt-summary" style="border-top:none; margin-top:0; padding-top:0;"></div>
+      </div>
 
-  <footer class="footer">
-    <div class="footer-inner" style="flex-direction:column; align-items:stretch;">
-      <button class="pay-btn pay-btn-full" type="button" onclick="trackOrder()">Track order</button>
-      <button class="btn-secondary" type="button" onclick="backToHome()">Back to home</button>
     </div>
-  </footer>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js"></script>
+    <div class="sticky-footer footer-stack">
+      <button class="btn btn-primary" type="button" onclick="trackOrder()">Track order</button>
+      <button class="btn btn-secondary" type="button" onclick="backToHome()">Back to home</button>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+</div>
+<script src="app.js"></script>
 </body>
 </html>

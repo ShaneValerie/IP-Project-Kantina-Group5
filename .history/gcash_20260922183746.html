@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Secure payment · Kantina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="my-style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <button class="back" type="button" aria-label="Go back" onclick="history.back()">←</button>
+    <div class="navbar-brand">
+      <div class="navbar-logo">K</div>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;">Secure payment</div>
+        <div class="navbar-sub">Kantina</div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page" role="main">
+
+    <section class="card">
+      <div style="display:flex; align-items:center; justify-content:center; padding: 8px 0 20px;">
+        <img src="gcash-logo.png" alt="GCash" style="height:72px; object-fit:contain;">
+      </div>
+
+      <div class="divider"></div>
+
+      <form id="payment-form" novalidate style="margin-top:18px;">
+        <div class="field">
+          <label for="mobile">Mobile number</label>
+          <input type="tel" id="mobile" name="mobile" inputmode="numeric" autocomplete="tel"
+                 placeholder="09XX XXX XXXX" required>
+        </div>
+        <div class="field">
+          <label for="mpin">MPIN</label>
+          <input type="password" id="mpin" name="mpin" inputmode="numeric" maxlength="6"
+                 placeholder="••••••" required>
+        </div>
+
+        <div class="amount-row">
+          <div>
+            <div class="amount-label">Amount due</div>
+            <div class="amount-ref">Ref #KTN-90214</div>
+          </div>
+          <div class="amount-value">₱150.00</div>
+        </div>
+      </form>
+
+      <div class="security-badge">256-bit encrypted &mdash; Secured by GCash</div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner" style="flex-direction:column; align-items:stretch;">
+      <button class="pay-btn pay-btn-full" type="button" id="authorize-btn" onclick="handleAuthorize()">Authorize payment</button>
+      <button class="btn-secondary" type="button" onclick="handleCancel()">Cancel</button>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

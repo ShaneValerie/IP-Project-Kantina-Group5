@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Order placed · Kantina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand" style="justify-content:center;">
+      <div class="navbar-logo">K</div>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#fff;letter-spacing:-.02em;">Order placed</div>
+        <div class="navbar-sub">Kantina</div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page" role="main">
+
+    <!-- Success hero -->
+    <section class="card">
+      <div class="success-hero">
+        <div class="success-icon" aria-hidden="true">✓</div>
+        <p class="success-title">You're all set!</p>
+        <p class="success-sub">Ref #KTN-90214 · Pickup at 11:30</p>
+        <div class="qr-box" aria-label="Pickup QR code">QR code</div>
+        <p style="font-size:12px; color:var(--ink-soft); margin-top:10px;">Show this at the counter</p>
+      </div>
+    </section>
+
+    <!-- Order summary -->
+    <section class="card">
+      <h2 class="section-label">Order summary</h2>
+      <div class="summary-list">
+        <div class="summary-row">
+          <span>Lola's Silog</span>
+          <span>₱85</span>
+        </div>
+        <div class="summary-row">
+          <span>Kape Kanto</span>
+          <span>₱60</span>
+        </div>
+        <div class="summary-row">
+          <span style="color:var(--ink-soft);">Service fee</span>
+          <span style="color:var(--ink-soft);">₱5</span>
+        </div>
+        <div class="summary-row total">
+          <span>Total paid</span>
+          <span>₱150</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner" style="flex-direction:column; align-items:stretch;">
+      <button class="pay-btn pay-btn-full" type="button" onclick="trackOrder()">Track order</button>
+      <button class="btn-secondary" type="button" onclick="backToHome()">Back to home</button>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

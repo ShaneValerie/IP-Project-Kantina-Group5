@@ -76,10 +76,6 @@
 <script>
 (function () {
 
-  // ---------------------------------------------------
-  // Data — swap this for a real query against your backend,
-  // keyed by the same "7" / "30" range values as the toggle
-  // ---------------------------------------------------
   const DATASETS = {
     "7": {
       revenue: 18420,
@@ -151,10 +147,6 @@
     render(btn.dataset.range);
   });
 
-  // ---------------------------------------------------
-  // Sidebar nav — Orders/Menu/Analytics/Tables are real pages;
-  // Settings is a placeholder until that page exists
-  // ---------------------------------------------------
   const navList = document.getElementById("nav-list");
   const sidebarFooter = document.querySelector(".sidebar-footer");
   const content = document.getElementById("content");
@@ -171,9 +163,6 @@
     });
   });
 
-  // ---------------------------------------------------
-  // Init
-  // ---------------------------------------------------
   render("7");
 
 })();
