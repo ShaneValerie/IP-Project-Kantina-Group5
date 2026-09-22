@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reserve a table — Kantina</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-reserve">
+<div class="app-frame" id="screen-reserve">
+  <div class="topnav">
+    <div class="topnav-inner">
+      <a class="topnav-brand" href="home.html">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M6 3v8a3 3 0 0 0 3 3v7M6 3v5M9 3v5M6 8h3M17 3c-2 1.2-2 4-2 6 0 1.6.8 2.6 2 3v9" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        Kantina
+      </a>
+      <nav class="topnav-links">
+        <a href="home.html">Home</a>
+        <a href="reserve.html" class="active">Reserve</a>
+        <a href="orders.html">Orders</a>
+        <a href="profile.html">Profile</a>
+      </nav>
+      <div class="topnav-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="appbar">
+    <a class="icon-btn" href="home.html" aria-label="Back to home">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <h1>Reserve a table</h1>
+  </div>
+
+  <div class="scroll" style="position:relative;">
+    <div class="rsv-body">
+
+      <div class="section-label">Day</div>
+      <div class="rsv-chip-row" id="day-group" role="group" aria-label="Day">
+        <button class="rsv-chip" type="button" data-day="Today" aria-pressed="true">Today</button>
+        <button class="rsv-chip" type="button" data-day="Tue 2" aria-pressed="false">Tue 2</button>
+        <button class="rsv-chip" type="button" data-day="Wed 3" aria-pressed="false">Wed 3</button>
+        <button class="rsv-chip" type="button" data-day="Thu 4" aria-pressed="false">Thu 4</button>
+      </div>
+
+      <div class="rsv-reserve-cols">
+        <div>
+          <div class="section-label">Party size</div>
+          <div class="rsv-party" id="party-group" role="group" aria-label="Party size">
+            <button type="button" data-party="1" aria-pressed="false">1</button>
+            <button type="button" data-party="2" aria-pressed="true">2</button>
+            <button type="button" data-party="4" aria-pressed="false">4</button>
+            <button type="button" data-party="6+" aria-pressed="false">6+</button>
+          </div>
+
+          <div class="section-label">Time slot</div>
+          <div class="rsv-slots" id="slot-group" role="group" aria-label="Time slot">
+            <button class="rsv-slot" type="button" data-time="11:00" aria-pressed="false">11:00</button>
+            <button class="rsv-slot" type="button" data-time="11:30" aria-pressed="false">11:30</button>
+            <button class="rsv-slot" type="button" data-time="12:00" aria-pressed="true">12:00</button>
+            <button class="rsv-slot" type="button" disabled aria-disabled="true">12:30</button>
+            <button class="rsv-slot" type="button" data-time="13:00" aria-pressed="false">13:00</button>
+            <button class="rsv-slot" type="button" disabled aria-disabled="true">13:30</button>
+            <button class="rsv-slot" type="button" data-time="14:00" aria-pressed="false">14:00</button>
+            <button class="rsv-slot" type="button" data-time="14:30" aria-pressed="false">14:30</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">Pick a table · Main hall</div>
+          <div class="rsv-floor">
+            <div class="rsv-floor-grid" id="table-group" role="group" aria-label="Floor plan">
+              <button class="rsv-table" type="button" data-table="T-01" aria-pressed="false">T-01<small>2 seats</small></button>
+              <button class="rsv-table" type="button" disabled aria-disabled="true">T-02<small>taken</small></button>
+              <button class="rsv-table" type="button" data-table="T-03" aria-pressed="false">T-03<small>2 seats</small></button>
+              <button class="rsv-table" type="button" data-table="T-04" aria-pressed="false">T-04<small>4 seats</small></button>
+              <button class="rsv-table" type="button" disabled aria-disabled="true">T-07<small>taken</small></button>
+              <button class="rsv-table" type="button" data-table="T-08" aria-pressed="false">T-08<small>4 seats</small></button>
+              <button class="rsv-table" type="button" data-table="T-11" aria-pressed="false">T-11<small>2 seats</small></button>
+              <button class="rsv-table" type="button" data-table="T-12" aria-pressed="true">T-12<small>2 seats</small></button>
+              <button class="rsv-table" type="button" data-table="T-14" aria-pressed="false">T-14<small>6 seats</small></button>
+              <button class="rsv-table" type="button" disabled aria-disabled="true">T-15<small>taken</small></button>
+              <button class="rsv-table" type="button" data-table="T-16" aria-pressed="false">T-16<small>4 seats</small></button>
+              <button class="rsv-table" type="button" data-table="T-18" aria-pressed="false">T-18<small>6 seats</small></button>
+            </div>
+            <div class="rsv-legend">
+              <span><i></i>Free</span>
+              <span><i class="picked"></i>Your pick</span>
+              <span><i class="taken"></i>Taken</span>
+            </div>
+          </div>
+
+          <div class="rsv-note">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <div>Tables are held for 10 minutes past the start time, then released automatically.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="rsv-footer">
+    <button class="btn btn-primary" type="button" id="hold-btn">Hold T-12 · 12:00</button>
+  </div>
+
+  <div class="tabbar">
+    <a class="tab" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Home</span>
+    </a>
+    <a class="tab active" href="reserve.html">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Reserve</span>
+    </a>
+    <a class="tab" href="orders.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12l1 4H5l1-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 7v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7M9 11h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Orders</span>
+    </a>
+    <a class="tab" href="profile.html">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.3" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Profile</span>
+    </a>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Reservation confirmed — Kantina</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="page-reservation-confirmed">
+<div class="app-frame" id="screen-reservation-confirmed">
+  <div class="topnav">
+    <div class="topnav-inner">
+      <a class="topnav-brand" href="home.html">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M6 3v8a3 3 0 0 0 3 3v7M6 3v5M9 3v5M6 8h3M17 3c-2 1.2-2 4-2 6 0 1.6.8 2.6 2 3v9" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        Kantina
+      </a>
+      <nav class="topnav-links">
+        <a href="home.html">Home</a>
+        <a href="reserve.html" class="active">Reserve</a>
+        <a href="orders.html">Orders</a>
+        <a href="profile.html">Profile</a>
+      </nav>
+      <div class="topnav-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll">
+    <div class="rsv-hero">
+      <div class="rsv-check">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h2>Table <span id="rc-table">T-12</span> is yours</h2>
+      <p><span id="rc-window">Today 12:00 – 12:45</span> · <span id="rc-party">2 people</span></p>
+
+      <div class="rsv-qr" aria-label="Check-in QR code">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><path d="M14 14h3v3h-3v-3ZM19.5 14H21M14 19.5V21M18 21h3v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        check-in QR
+      </div>
+    </div>
+
+    <div class="rsv-body">
+      <div class="rsv-detail">
+        <div class="rsv-detail-row"><span>Reference</span><strong id="rc-ref">#KTN-R4821</strong></div>
+        <div class="rsv-detail-row"><span>Table</span><strong id="rc-table-2">T-12 · Main hall</strong></div>
+        <div class="rsv-detail-row"><span>Day and time</span><strong id="rc-daytime">Today · 12:00</strong></div>
+        <div class="rsv-detail-row"><span>Party size</span><strong id="rc-party-2">2 people</strong></div>
+      </div>
+
+      <div class="rsv-note">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l2.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div>Held for 10 min past the start time. After that it is released automatically.</div>
+      </div>
+
+      <div class="rsv-actions">
+        <a class="btn btn-primary" href="stall.html">Add food to this table</a>
+        <button class="btn btn-secondary" type="button" id="rc-calendar">Add to calendar</button>
+        <button class="btn btn-quiet" type="button" id="rc-cancel">Cancel reservation</button>
+      </div>
+
+      <div style="text-align:center; margin:22px 0 10px;">
+        <a href="reservations.html" style="font-size:13.5px; font-weight:600; color:var(--green);">View all my reservations</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <a class="tab" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Home</span>
+    </a>
+    <a class="tab active" href="reserve.html">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Reserve</span>
+    </a>
+    <a class="tab" href="orders.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12l1 4H5l1-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 7v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7M9 11h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Orders</span>
+    </a>
+    <a class="tab" href="profile.html">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.3" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Profile</span>
+    </a>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
