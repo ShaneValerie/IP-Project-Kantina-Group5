@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>My orders — Kantina</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">
 </head>
-<body class="page-orders">
+<body class="page-orders flow-page">
 <div class="app-frame" id="screen-orders">
   <div class="topnav">
     <div class="topnav-inner">
@@ -22,12 +23,17 @@
       </div>
     </div>
   </div>
-  <div class="appbar">
+  <header class="flow-head">
+  <div class="flow-head-top">
     <button class="icon-btn" type="button" aria-label="Go back" onclick="goBack('home.html')">
       <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <h1>My orders</h1>
   </div>
+  <div class="flow-head-text">
+    <h1>Your orders</h1>
+    <p>Track today&rsquo;s orders and see past ones</p>
+  </div>
+  </header>
 
   <div class="scroll">
     <div class="flow-body no-footer">

@@ -130,7 +130,24 @@ function renderPickupSlots() {
   });
 }
 
+// Item rows used by the checkout and receipt summaries
+function summaryRows(totalLabel) {
+  return ORDER.items.map(it => `
+      <div class="summary-row"><span${it.soft ? ' style="color:var(--ink-soft);"' : ''}>${it.name}</span><span${it.soft ? ' style="color:var(--ink-soft);"' : ''}>₱${it.price}</span></div>
+    `).join('') + `<div class="summary-row total"><span>${totalLabel}</span><span>₱${ORDER.total}</span></div>`;
+}
+
+// Remember how the student paid, so the receipt can say so
+function savePaymentMethod(method) {
+  try { sessionStorage.setItem('kantinaPayment', method); } catch (e) {}
+}
+function getPaymentMethod() {
+  try { return sessionStorage.getItem('kantinaPayment') || 'gcash'; } catch (e) { return 'gcash'; }
+}
+
 function renderCheckoutInfo() {
+  const items = document.getElementById('checkout-items');
+  if (items) items.innerHTML = summaryRows('Total');
   setText('table-name', ORDER.table);
   setText('table-detail', ORDER.tableDetail);
   setText('checkout-total', '₱' + ORDER.total);
@@ -145,18 +162,34 @@ function renderGcashInfo() {
 }
 
 function renderReceipt() {
-  setText('receipt-ref', 'Ref #' + ORDER.ref + ' · Pickup at ' + ORDER.pickupTime);
+  setText('receipt-sub', 'Pickup at ' + ORDER.pickupTime + ' · ' + ORDER.counter);
+  setText('receipt-ref', 'Show this at the counter · Ref #' + ORDER.ref);
   const summaryBox = document.getElementById('receipt-summary');
   if (summaryBox) {
-    summaryBox.innerHTML = ORDER.items.map(it => `
-      <div class="summary-row"><span${it.soft ? ' style="color:var(--ink-soft);"' : ''}>${it.name}</span><span${it.soft ? ' style="color:var(--ink-soft);"' : ''}>₱${it.price}</span></div>
-    `).join('') + `<div class="summary-row total"><span>Total paid</span><span>₱${ORDER.total}</span></div>`;
+    const label = getPaymentMethod() === 'counter' ? 'Pay at the counter' : 'Total paid';
+    summaryBox.innerHTML = summaryRows(label);
   }
 }
 
+// Friendly headline for each order status
+const STATUS_HEADLINES = {
+  'Order placed':      'We got your order',
+  'Payment confirmed': 'Payment received',
+  'Preparing':         'Your food is cooking',
+  'Ready for pickup':  'Your food is ready!',
+  'Completed':         'Enjoy your meal!'
+};
+
 function renderTracking() {
   setText('tracking-ref', '#' + ORDER.ref);
-  setText('tracking-status', ORDER.status);
+  setText('tracking-status', STATUS_HEADLINES[ORDER.status] || ORDER.status);
+  const steps = document.getElementById('tracking-steps');
+  if (steps) {
+    steps.setAttribute('aria-label', `Order progress: step ${ORDER.statusStep} of ${ORDER.statusTotal}`);
+    steps.innerHTML = ORDER.timeline.map(t =>
+      `<li${t.pending ? '' : ' class="done"'}><span>${t.title}</span></li>`
+    ).join('');
+  }
   setText('tracking-eta', ORDER.statusSub);
   setText('tracking-counter', ORDER.counter);
   const progress = document.getElementById('tracking-progress');
@@ -168,8 +201,9 @@ function renderTracking() {
   }
   const timeline = document.getElementById('tracking-timeline');
   if (timeline) {
-    timeline.innerHTML = ORDER.timeline.map(t => `
-      <div class="timeline-step${t.pending ? ' pending' : ''}">
+    const currentIndex = ORDER.timeline.filter(t => !t.pending).length - 1;
+    timeline.innerHTML = ORDER.timeline.map((t, i) => `
+      <div class="timeline-step${t.pending ? ' pending' : ''}${i === currentIndex ? ' current' : ''}">
         <span class="timeline-dot" aria-hidden="true"></span>
         <div class="timeline-title">${t.title}</div>
         ${t.sub ? `<div class="timeline-sub">${t.sub}</div>` : ''}
@@ -236,9 +270,11 @@ function handlePay() {
   const paymentGroup = document.getElementById('payment-group');
   const selected = paymentGroup.querySelector('[aria-checked="true"]');
   if (selected && selected.dataset.value === 'counter') {
+    savePaymentMethod('counter');
     showToast('Order placed — pay ₱' + ORDER.total + ' at the counter');
     setTimeout(() => { window.location.href = 'receipt.html'; }, 900);
   } else {
+    savePaymentMethod('gcash');
     window.location.href = 'payment.html';
   }
 }

@@ -895,3 +895,112 @@ button, input, textarea{ font-family:inherit; }
   }
   .toast{ bottom:24px; }
 }
+
+/* =========================================================
+   ORDER FLOW REDESIGN — friendly green header + steps
+   Applies only to pages with body.flow-page:
+   checkout, payment (GCash), receipt, tracking, orders
+   ========================================================= */
+.flow-page .app-frame{ max-width:100%; }
+@media (min-width:641px) and (max-width:859px){
+  body.flow-page{ padding:0; }
+  .flow-page .app-frame{ height:auto; min-height:100vh; border-radius:0; box-shadow:none; border:none; }
+}
+.flow-page .topnav-brand{ font-family:"DM Serif Display",Georgia,serif; font-size:23px; font-weight:400; letter-spacing:0; }
+
+.flow-head{
+  background:var(--green); color:var(--white);
+  border-bottom:4px solid var(--yellow);
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 16px;
+  flex-shrink:0;
+}
+.flow-head-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; }
+.flow-head-meta{ font-size:12.5px; font-weight:600; color:rgba(255,255,255,0.8); }
+.flow-head .icon-btn{ background:rgba(255,255,255,0.16); border-color:transparent; color:var(--white); }
+.flow-head-text h1{ margin:12px 0 0; font-size:22px; font-weight:700; letter-spacing:-0.02em; }
+.flow-head-text p{ margin:3px 0 0; font-size:13.5px; color:rgba(255,255,255,0.82); }
+.flow-head.centered{ text-align:center; }
+.flow-head.centered .flow-head-top{ justify-content:center; min-height:0; }
+.flow-head-icon{
+  width:46px; height:46px; border-radius:50%; margin:10px auto 0;
+  background:var(--white); color:var(--green); border:2.5px solid var(--yellow);
+  display:flex; align-items:center; justify-content:center;
+}
+.flow-head-icon svg{ width:22px; height:22px; }
+.flow-head.centered .flow-head-text h1{ margin-top:10px; }
+
+/* steps: thin bars on phones, bars + labels on desktop */
+.flow-steps{ list-style:none; margin:14px 0 0; padding:0; display:flex; gap:5px; }
+.flow-steps li{ flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,0.25); }
+.flow-steps li.done{ background:var(--yellow); }
+.flow-steps li span{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+.flow-page .section-label{
+  font-size:14px; font-weight:700; color:var(--ink);
+  border-left:3px solid var(--yellow); padding-left:9px; margin:0 0 12px;
+}
+
+/* checkout: "Your order" summary */
+.checkout-side{ margin-top:26px; }
+.checkout-side .summary-box{ border-top:none; margin-top:0; padding-top:0; }
+
+/* payment: amount due first */
+.pay-amount{ text-align:center; padding:0 0 20px; }
+.pay-amount img{ height:64px; width:auto; display:block; margin:0 auto 6px; }
+.pay-amount-label{ font-size:12.5px; font-weight:600; color:var(--ink-soft); }
+.pay-amount-value{ font-size:32px; font-weight:700; letter-spacing:-0.02em; margin:2px 0; }
+.pay-amount-ref{ font-size:12px; color:var(--ink-faint); }
+
+/* receipt + tracking: sample QR codes */
+.flow-page .qr-box{ background:var(--white); border:1.5px solid var(--border); padding:12px; }
+.flow-page .qr-mini{ border:1.5px solid var(--border); padding:5px; }
+.qr-svg{ width:100%; height:100%; display:block; }
+.page-receipt .success-hero{ padding-top:4px; }
+
+/* tracking: highlight the step happening now */
+.timeline-step.current .timeline-title{ color:var(--green); font-weight:700; }
+
+/* orders: active cards open tracking */
+a.order-card:hover{ border-color:var(--green); }
+
+@media (min-width:860px){
+  .flow-head{
+    --flow-w:640px;
+    padding:22px max(40px, calc((100% - var(--flow-w)) / 2)) 22px;
+    display:grid; grid-template-columns:1fr auto; align-items:end; column-gap:24px;
+  }
+  .page-checkout .flow-head{ --flow-w:1000px; }
+  .flow-head-top{ grid-column:1 / -1; }
+  .flow-head-text h1{ font-size:26px; }
+  .flow-steps{ margin:0; gap:12px; }
+  .flow-steps li{
+    flex:0 0 auto; width:78px; height:auto; background:none; position:relative;
+    padding-top:10px; font-size:12px; font-weight:600; color:rgba(255,255,255,0.6);
+  }
+  .flow-steps li::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:4px; border-radius:2px;
+    background:rgba(255,255,255,0.25);
+  }
+  .flow-steps li.done{ background:none; color:var(--white); }
+  .flow-steps li.done::before{ background:var(--yellow); }
+  .flow-steps li span{ position:static; width:auto; height:auto; overflow:visible; clip:auto; }
+  .flow-head.centered{ display:block; }
+  .flow-head.centered .flow-steps{ justify-content:center; margin-top:16px; }
+  /* tracking has 5 longer step names: give them their own full-width row */
+  .page-tracking .flow-steps{ grid-column:1 / -1; margin-top:18px; }
+  .page-tracking .flow-steps li{ flex:1; width:auto; }
+
+  .flow-page .flow-body{ padding-top:28px; }
+  .page-checkout .flow-body{
+    max-width:1000px; display:grid; grid-template-columns:minmax(0,1fr) 340px;
+    gap:40px; align-items:start;
+  }
+  .page-checkout .slot-grid{ grid-template-columns:repeat(6,1fr); }
+  .page-checkout .option-list{ display:grid; grid-template-columns:1fr 1fr; }
+  .page-checkout .checkout-side{
+    margin-top:0; position:sticky; top:24px;
+    border:1.5px solid var(--border); border-radius:var(--radius-lg); padding:20px;
+  }
+  .page-checkout .checkout-side .sticky-footer{ margin:16px 0 0; max-width:none; }
+  .page-checkout .checkout-side .pay-row{ border:none; box-shadow:none; padding:0; }
+}
