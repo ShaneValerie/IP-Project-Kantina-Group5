@@ -326,8 +326,6 @@ button, input, textarea{ font-family:inherit; }
 
 /* =========================================================
    DESKTOP / WEB VIEW
-   Mobile styles above are the baseline (mobile-first).
-   Everything below only applies at wider viewports.
    ========================================================= */
 
 .topnav{ display:none; }

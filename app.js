@@ -62,16 +62,17 @@ const HISTORY_ORDERS = [
 
 const NAV_LINKS = [
   { label: 'Home',    href: 'home.html',   activeOn: ['home'] },
-  { label: 'Reserve', href: '#',           activeOn: [] },
-  { label: 'Orders',  href: 'orders.html', activeOn: ['orders'] },
-  { label: 'Profile', href: '#',           activeOn: ['profile'] }
+  { label: 'Reserve', href: 'reservations.html', activeOn: ['reserve', 'reservations', 'reservation-confirmed'] },
+  { label: 'Orders',  href: 'orders.html',       activeOn: ['orders', 'tracking'] },
+  { label: 'Profile', href: 'profile.html',      activeOn: ['profile'] }
 ];
 
 // ── Topnav ──
 (function renderTopnav() {
   const nav = document.querySelector('.topnav-links');
   if (!nav) return;
-  const page = document.body.className.replace('page-', '');
+  const pageClass = Array.from(document.body.classList).find(c => c.startsWith('page-')) || '';
+  const page = pageClass.replace('page-', '');
   nav.innerHTML = NAV_LINKS.map(l =>
     `<a href="${l.href}"${l.activeOn.includes(page) ? ' class="active"' : ''}>${l.label}</a>`
   ).join('');
@@ -85,6 +86,16 @@ function showToast(message) {
   toast.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+// ── Back buttons ──
+// Go back if we came from another Kantina page, otherwise open a sensible page
+// (so the back button still works when a page is opened directly).
+function goBack(fallback) {
+  let sameSite = false;
+  try { sameSite = document.referrer && new URL(document.referrer).origin === location.origin; } catch (e) {}
+  if (sameSite && history.length > 1) history.back();
+  else window.location.href = fallback;
 }
 
 // ── Render helpers ──
@@ -170,8 +181,10 @@ function renderTracking() {
 function renderOrderCard(o, muted) {
   const prog = o.progress ? `<div class="order-progress" aria-label="Order progress: step ${o.progress} of ${o.progressTotal}">${Array.from({ length: o.progressTotal }, (_, i) => `<span${i < o.progress ? ' class="filled"' : ''}></span>`).join('')}</div>` : '';
   const rate = muted ? `<button class="link-btn card-link" type="button" onclick="showToast('Would open order rating')">Rate this order →</button>` : '';
-  return `<div class="order-card${muted ? ' muted' : ''}">
-    <div class="order-card-top"><div><div class="order-card-title">#${o.ref}</div><div class="order-card-sub">${o.stall} · ${o.detail}</div></div><span class="badge ${o.badgeClass}">${o.badge}</span></div>${prog}${rate}</div>`;
+  const top = `<div class="order-card-top"><div><div class="order-card-title">#${o.ref}</div><div class="order-card-sub">${o.stall} · ${o.detail}</div></div><span class="badge ${o.badgeClass}">${o.badge}</span></div>`;
+  // Active orders open their tracking page; finished ones stay as cards with "Rate".
+  if (!muted) return `<a class="order-card" href="tracking.html" style="display:block;color:inherit;">${top}${prog}</a>`;
+  return `<div class="order-card muted">${top}${rate}</div>`;
 }
 
 function renderOrders() {
@@ -224,6 +237,7 @@ function handlePay() {
   const selected = paymentGroup.querySelector('[aria-checked="true"]');
   if (selected && selected.dataset.value === 'counter') {
     showToast('Order placed — pay ₱' + ORDER.total + ' at the counter');
+    setTimeout(() => { window.location.href = 'receipt.html'; }, 900);
   } else {
     window.location.href = 'payment.html';
   }
@@ -243,7 +257,7 @@ function handleAuthorize() {
 
 function handleCancel() {
   showToast('Payment cancelled');
-  setTimeout(() => history.back(), 900);
+  setTimeout(() => { window.location.href = 'checkout.html'; }, 900);
 }
 
 // ── Receipt page ──
@@ -251,6 +265,7 @@ function trackOrder() { window.location.href = 'tracking.html'; }
 function backToHome() { window.location.href = 'home.html'; }
 
 // ── Tracking page ──
+function messageStall() { showToast('Messaging ' + ORDER.stall + ' is coming soon'); }
 
 // ── Orders page ──
 const orderTabs = document.getElementById('order-tabs');

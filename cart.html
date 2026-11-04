@@ -16,9 +16,9 @@
       </a>
       <nav class="topnav-links">
         <a href="home.html" class="active">Home</a>
-        <a href="#">Reserve</a>
-        <a href="#">Orders</a>
-        <a href="#">Profile</a>
+        <a href="reservations.html">Reserve</a>
+        <a href="orders.html">Orders</a>
+        <a href="profile.html">Profile</a>
       </nav>
       <div class="topnav-actions">
         <a class="icon-btn" href="cart.html" aria-label="Cart">
@@ -46,7 +46,7 @@
             <div class="note">+ extra rice · no onions</div>
             <div class="row-actions">
               <a class="link-btn" href="item.html">Edit</a>
-              <a class="link-btn remove" href="#">Remove</a>
+              <button class="link-btn remove" type="button">Remove</button>
             </div>
           </div>
 
@@ -57,8 +57,8 @@
               <span class="price">₱60</span>
             </div>
             <div class="row-actions">
-              <a class="link-btn" href="#">Edit</a>
-              <a class="link-btn remove" href="#">Remove</a>
+              <a class="link-btn" href="item.html">Edit</a>
+              <button class="link-btn remove" type="button">Remove</button>
             </div>
           </div>
 
@@ -70,9 +70,9 @@
 
         <div class="cart-summary-col">
           <div class="summary-box">
-            <div class="summary-row"><span>Subtotal</span><span>₱145</span></div>
-            <div class="summary-row"><span>Service fee</span><span>₱5</span></div>
-            <div class="summary-row total"><span>Total</span><span>₱150</span></div>
+            <div class="summary-row"><span>Subtotal</span><span id="cart-subtotal">₱145</span></div>
+            <div class="summary-row"><span>Service fee</span><span id="cart-fee">₱5</span></div>
+            <div class="summary-row total"><span>Total</span><span id="cart-total">₱150</span></div>
           </div>
           <div class="cart-footer">
             <a class="btn btn-primary" href="checkout.html">Checkout</a>
@@ -82,5 +82,40 @@
     </div>
   </div>
 </div>
+<script>
+// Remove an item from the cart and update the totals.
+(function () {
+  const SERVICE_FEE = 5;
+  const peso = n => '\u20B1' + n;
+  function updateTotals() {
+    const prices = Array.from(document.querySelectorAll('.cart-item .price'))
+      .map(el => parseInt(el.textContent.replace(/[^0-9]/g, ''), 10) || 0);
+    const subtotal = prices.reduce((a, b) => a + b, 0);
+    document.getElementById('cart-subtotal').textContent = peso(subtotal);
+    const fee = prices.length ? SERVICE_FEE : 0;
+    document.getElementById('cart-fee').textContent = peso(fee);
+    document.getElementById('cart-total').textContent = peso(subtotal + fee);
+    if (!prices.length) {
+      const col = document.querySelector('.cart-items-col');
+      col.innerHTML = '<p class="cart-stall-label">Your cart is empty</p><a class="link-btn" href="home.html">Browse stalls \u2192</a>';
+      const checkout = document.querySelector('.cart-footer .btn');
+      checkout.setAttribute('href', 'home.html');
+      checkout.textContent = 'Back to home';
+    }
+  }
+  document.querySelectorAll('.cart-item .remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.cart-item');
+      const label = item.previousElementSibling;
+      const next = item.nextElementSibling;
+      // drop the stall heading too if this was its only item
+      if (label && label.classList.contains('cart-stall-label') &&
+          !(next && next.classList.contains('cart-item'))) label.remove();
+      item.remove();
+      updateTotals();
+    });
+  });
+})();
+</script>
 </body>
 </html>

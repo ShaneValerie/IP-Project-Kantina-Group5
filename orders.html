@@ -23,7 +23,7 @@
     </div>
   </div>
   <div class="appbar">
-    <button class="icon-btn" type="button" aria-label="Go back" onclick="history.back()">
+    <button class="icon-btn" type="button" aria-label="Go back" onclick="goBack('home.html')">
       <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
     <h1>My orders</h1>
@@ -48,7 +48,24 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
-</div>
+  <div class="tabbar">
+    <a class="tab" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Home</span>
+    </a>
+    <a class="tab" href="reservations.html">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Reserve</span>
+    </a>
+    <a class="tab active" href="orders.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12l1 4H5l1-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 7v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7M9 11h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Orders</span>
+    </a>
+    <a class="tab" href="profile.html">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.3" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Profile</span>
+    </a>
+  </div>
 <script src="app.js"></script>
 </body>
 </html>

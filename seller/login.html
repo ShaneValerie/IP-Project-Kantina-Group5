@@ -67,6 +67,7 @@
     </form>
 
     <p class="footnote">Each stall has its own account and sees only its own orders.</p>
+    <p class="footnote">Not store staff? <a href="../signin.html">Customer sign in</a></p>
 
   </div>
 </main>
@@ -129,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
 
       await fakeSignIn(storeAccountInput.value.trim(), passwordInput.value);
-      console.log("Signed in — wire this up to your real endpoint.");
+      window.location.href = "orders.html";
     } catch (err) {
       setError(passwordInput, passwordError, err.message || "Sign in failed. Try again.");
     } finally {

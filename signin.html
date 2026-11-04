@@ -28,11 +28,13 @@
 
     <div class="signin-actions">
       <a class="btn btn-primary" href="home.html">Sign in</a>
-      <a class="btn btn-secondary" href="#">Create account</a>
+      <button class="btn btn-secondary" type="button" onclick="document.getElementById('signup-note').hidden = false">Create account</button>
     </div>
 
+    <p class="signin-switch" id="signup-note" role="status" hidden>Sign-up isn&rsquo;t open yet. Sign in with your student ID for now.</p>
+
     <div class="signin-switch">
-      Store staff? <a class="link-btn" href="#">Switch to store login</a>
+      Store staff? <a class="link-btn" href="seller/login.html">Switch to store login</a>
     </div>
   </div>
 </div>
