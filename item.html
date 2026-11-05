@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tapsilog — Kantina</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">
 </head>
-<body class="page-item">
+<body class="page-item flow-page">
 <div class="app-frame" id="screen-item">
   <div class="topnav">
     <div class="topnav-inner">
@@ -27,47 +28,73 @@
       </div>
     </div>
   </div>
-  <div class="appbar">
-    <a class="icon-btn" href="stall.html">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
-    <h1>Tapsilog</h1>
+  <header class="flow-head">
+  <div class="flow-head-top">
+    <a class="icon-btn" href="stall.html" aria-label="Back to Lola&rsquo;s Silog"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
-  <div class="scroll" style="position:relative;">
+  <div class="flow-head-text">
+    <span class="flow-head-meta">Lola&rsquo;s Silog</span>
+    <h1>Tapsilog</h1>
+    <p>Make it your way</p>
+  </div>
+  </header>
+
+  <div class="scroll">
     <div class="item-layout">
       <div class="item-photo">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M6 3v8a2.5 2.5 0 0 0 2.5 2.5V21M6 3v5M8.5 3v5M6 6.5h2.5M17 3c-1.6 1-1.6 3.5-1.6 5.2 0 1.4.7 2.3 1.6 2.6V21" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <img class="photo-img" src="assets/img/food/tapsilog.jpg" alt="Tapsilog with garlic fried rice">
       </div>
       <div class="item-body">
-        <h2>Tapsilog</h2>
-        <p class="item-price">₱85</p>
+        <div class="item-title-row">
+          <h2>Tapsilog</h2>
+          <p class="item-price">₱85</p>
+        </div>
         <p class="item-desc">Marinated beef tapa, garlic fried rice, and a sunny-side-up egg. Served with atchara on the side.</p>
 
-        <div class="addon-row">
+        <h3 class="section-label">Add-ons</h3>
+        <label class="addon-row">
+          <input type="checkbox" data-price="15">
           <div class="addon-text"><strong>Extra rice</strong><span>+₱15</span></div>
-          <div class="toggle"></div>
-        </div>
-        <div class="addon-row">
+        </label>
+        <label class="addon-row">
+          <input type="checkbox" data-price="12">
           <div class="addon-text"><strong>Fried egg</strong><span>+₱12</span></div>
-          <div class="toggle"></div>
-        </div>
+        </label>
 
         <div class="note-field">
-          <label for="note">Note to kitchen</label>
+          <label for="note" class="section-label">Note to kitchen</label>
           <textarea id="note" placeholder="e.g. no onions, sauce on the side"></textarea>
         </div>
 
         <div class="item-footer">
           <div class="stepper">
-            <button type="button">−</button>
-            <span>1</span>
-            <button type="button">+</button>
+            <button type="button" id="qty-minus" aria-label="One less">−</button>
+            <span id="qty" aria-live="polite">1</span>
+            <button type="button" id="qty-plus" aria-label="One more">+</button>
           </div>
-          <a class="btn btn-primary" style="flex:1;" href="stall.html">Add · ₱85</a>
+          <a class="btn btn-primary" style="flex:1;" href="stall.html" id="add-btn">Add · ₱85</a>
         </div>
       </div>
     </div>
   </div>
 </div>
+<script>
+// Add-ons and quantity update the price on the Add button.
+(function () {
+  const BASE_PRICE = 85;
+  let qty = 1;
+  const addBtn = document.getElementById('add-btn');
+  const qtyEl = document.getElementById('qty');
+  function update() {
+    const extras = Array.from(document.querySelectorAll('.addon-row input:checked'))
+      .reduce((sum, el) => sum + Number(el.dataset.price), 0);
+    qtyEl.textContent = qty;
+    addBtn.textContent = 'Add \u00b7 \u20B1' + (BASE_PRICE + extras) * qty;
+  }
+  document.querySelectorAll('.addon-row input').forEach(el => el.addEventListener('change', update));
+  document.getElementById('qty-minus').addEventListener('click', () => { if (qty > 1) { qty--; update(); } });
+  document.getElementById('qty-plus').addEventListener('click', () => { if (qty < 10) { qty++; update(); } });
+})();
+</script>
 </body>
 </html>

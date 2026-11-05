@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Reservation confirmed — Kantina</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">
 </head>
-<body class="page-reservation-confirmed">
+<body class="page-reservation-confirmed flow-page">
 <div class="app-frame" id="screen-reservation-confirmed">
   <div class="topnav">
     <div class="topnav-inner">
@@ -28,24 +29,26 @@
     </div>
   </div>
 
+  <header class="flow-head centered">
+  <div class="flow-head-top">
+    <span class="flow-head-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+  </div>
+  <div class="flow-head-text">
+    <span class="flow-head-meta">Reservation confirmed</span>
+    <h1>Table <span id="rc-table">T-12</span> is yours!</h1>
+    <p><span id="rc-window">Today 12:00 – 12:45</span> · <span id="rc-party">2 people</span></p>
+  </div>
+  </header>
+
   <div class="scroll">
-    <div class="rsv-hero">
-      <div class="rsv-check">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <h2>Table <span id="rc-table">T-12</span> is yours</h2>
-      <p><span id="rc-window">Today 12:00 – 12:45</span> · <span id="rc-party">2 people</span></p>
-
-      <div class="rsv-qr" aria-label="Check-in QR code">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><path d="M14 14h3v3h-3v-3ZM19.5 14H21M14 19.5V21M18 21h3v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        check-in QR
-      </div>
-    </div>
-
     <div class="rsv-body">
+      <div class="rsv-qr-wrap">
+        <div class="rsv-qr"><svg class="qr-svg" viewBox="0 0 21 21" role="img" aria-label="Sample check-in QR code" shape-rendering="crispEdges"><rect width="21" height="21" fill="#fff"/><g fill="#132A1E"><path d="M0 0h7v7H0zM14 0h7v7h-7zM0 14h7v7H0z"/><path fill="#fff" d="M1 1h5v5H1zM15 1h5v5h-5zM1 15h5v5H1z"/><path d="M2 2h3v3H2zM16 2h3v3h-3zM2 16h3v3H2zM9 1h1v2H9zM11 3h2v1h-2zM8 5h1v3H8zM10 8h3v1h-3zM14 9h2v2h-2zM17 8h3v1h-3zM9 10h1v3H9zM12 11h1v2h-1zM1 9h3v1H1zM5 10h2v2H5zM15 13h1v3h-1zM18 12h2v2h-2zM10 15h3v1h-3zM9 17h2v3H9zM13 18h3v1h-3zM17 16h1v4h-1zM19 19h1v1h-1z"/></g></svg></div>
+        <p class="rsv-qr-note">Show this to check in at your table</p>
+      </div>
       <div class="rsv-detail">
         <div class="rsv-detail-row"><span>Reference</span><strong id="rc-ref">#KTN-R4821</strong></div>
-        <div class="rsv-detail-row"><span>Table</span><strong id="rc-table-2">T-12 · Main hall</strong></div>
+        <div class="rsv-detail-row"><span>Table</span><strong id="rc-table-2">T-12 · Lawrence Bunzel Canteen</strong></div>
         <div class="rsv-detail-row"><span>Day and time</span><strong id="rc-daytime">Today · 12:00</strong></div>
         <div class="rsv-detail-row"><span>Party size</span><strong id="rc-party-2">2 people</strong></div>
       </div>

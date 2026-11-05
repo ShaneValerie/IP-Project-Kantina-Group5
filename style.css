@@ -400,10 +400,7 @@ button, input, textarea{ font-family:inherit; }
   #screen-signin .scroll{ padding:0 44px; }
   #screen-signin .signin-top{ padding-top:52px; }
 
-  /* ---- home: header + stall grid ---- */
-  #screen-home .home-header{
-    max-width:1180px; margin:0 auto; width:100%; padding:28px 40px 18px;
-  }
+  /* ---- home: stall grid (header uses the shared .flow-head box) ---- */
   #screen-home .home-body{
     max-width:1180px; margin:0 auto; width:100%; padding:18px 40px 60px;
   }
@@ -897,9 +894,10 @@ button, input, textarea{ font-family:inherit; }
 }
 
 /* =========================================================
-   ORDER FLOW REDESIGN — friendly green header + steps
+   BUYER PAGES REDESIGN — friendly green header + steps
    Applies only to pages with body.flow-page:
-   checkout, payment (GCash), receipt, tracking, orders
+   home, stall, item, cart, checkout, payment (GCash),
+   receipt, tracking, orders (sign in has its own block below)
    ========================================================= */
 .flow-page .app-frame{ max-width:100%; }
 @media (min-width:641px) and (max-width:859px){
@@ -908,29 +906,40 @@ button, input, textarea{ font-family:inherit; }
 }
 .flow-page .topnav-brand{ font-family:"DM Serif Display",Georgia,serif; font-size:23px; font-weight:400; letter-spacing:0; }
 
-.flow-head{
+/* Every buyer header (and the home header) shares one height, one width and
+   one layout: top row (back button left, label right), title, then steps. */
+.flow-head,
+.page-home .home-header{
+  --head-h:168px;
   background:var(--green); color:var(--white);
   border-bottom:4px solid var(--yellow);
   padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 16px;
+  min-height:calc(env(safe-area-inset-top,0px) + var(--head-h));
+  box-sizing:border-box;
+  display:flex; flex-direction:column;
   flex-shrink:0;
 }
 .flow-head-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:34px; }
-.flow-head-meta{ font-size:12.5px; font-weight:600; color:rgba(255,255,255,0.8); }
+/* small label above the title ("Step 2 of 3", stall name, order ref) */
+.flow-head-meta{ display:block; margin-top:12px; font-size:11.5px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:rgba(255,255,255,0.85); }
+.flow-head-meta + h1, .flow-head-meta + .flow-head-name{ margin-top:2px; }
 .flow-head .icon-btn{ background:rgba(255,255,255,0.16); border-color:transparent; color:var(--white); }
 .flow-head-text h1{ margin:12px 0 0; font-size:22px; font-weight:700; letter-spacing:-0.02em; }
-.flow-head-text p{ margin:3px 0 0; font-size:13.5px; color:rgba(255,255,255,0.82); }
-.flow-head.centered{ text-align:center; }
-.flow-head.centered .flow-head-top{ justify-content:center; min-height:0; }
+.flow-head-text p{ margin:3px 0 0; font-size:13.5px; color:rgba(255,255,255,0.9); }
+/* success check sits where the back button would be */
 .flow-head-icon{
-  width:46px; height:46px; border-radius:50%; margin:10px auto 0;
-  background:var(--white); color:var(--green); border:2.5px solid var(--yellow);
-  display:flex; align-items:center; justify-content:center;
+  width:34px; height:34px; border-radius:50%; flex-shrink:0;
+  background:var(--white); color:var(--green); border:2px solid var(--yellow);
+  display:flex; align-items:center; justify-content:center; box-sizing:border-box;
 }
-.flow-head-icon svg{ width:22px; height:22px; }
-.flow-head.centered .flow-head-text h1{ margin-top:10px; }
+.flow-head-icon svg{ width:18px; height:18px; }
+/* "done" screens (receipt, reservation confirmed): no back button, so center
+   everything to line up with the centered QR code below */
+.flow-head.centered{ text-align:center; }
+.flow-head.centered .flow-head-top{ justify-content:center; }
 
 /* steps: thin bars on phones, bars + labels on desktop */
-.flow-steps{ list-style:none; margin:14px 0 0; padding:0; display:flex; gap:5px; }
+.flow-steps{ list-style:none; margin:auto 0 0; padding:14px 0 0; display:flex; gap:5px; }
 .flow-steps li{ flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,0.25); }
 .flow-steps li.done{ background:var(--yellow); }
 .flow-steps li span{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
@@ -964,15 +973,19 @@ button, input, textarea{ font-family:inherit; }
 a.order-card:hover{ border-color:var(--green); }
 
 @media (min-width:860px){
-  .flow-head{
-    --flow-w:640px;
-    padding:22px max(40px, calc((100% - var(--flow-w)) / 2)) 22px;
-    display:grid; grid-template-columns:1fr auto; align-items:end; column-gap:24px;
+  /* same width as the top nav (1180px minus its 40px gutters) on every page */
+  .flow-head,
+  .page-home .home-header{
+    --head-h:168px;
+    padding:22px max(40px, calc((100% - 1100px) / 2)) 22px;
   }
-  .page-checkout .flow-head{ --flow-w:1000px; }
-  .flow-head-top{ grid-column:1 / -1; }
+  .flow-head{
+    display:grid; grid-template-columns:1fr auto; grid-template-rows:auto 1fr;
+    align-items:end; column-gap:24px;
+  }
+  .flow-head-top{ grid-column:1 / -1; align-self:start; }
   .flow-head-text h1{ font-size:26px; }
-  .flow-steps{ margin:0; gap:12px; }
+  .flow-steps{ margin:0; padding:0; gap:12px; }
   .flow-steps li{
     flex:0 0 auto; width:78px; height:auto; background:none; position:relative;
     padding-top:10px; font-size:12px; font-weight:600; color:rgba(255,255,255,0.6);
@@ -984,11 +997,10 @@ a.order-card:hover{ border-color:var(--green); }
   .flow-steps li.done{ background:none; color:var(--white); }
   .flow-steps li.done::before{ background:var(--yellow); }
   .flow-steps li span{ position:static; width:auto; height:auto; overflow:visible; clip:auto; }
-  .flow-head.centered{ display:block; }
-  .flow-head.centered .flow-steps{ justify-content:center; margin-top:16px; }
-  /* tracking has 5 longer step names: give them their own full-width row */
-  .page-tracking .flow-steps{ grid-column:1 / -1; margin-top:18px; }
-  .page-tracking .flow-steps li{ flex:1; width:auto; }
+  .flow-head.centered{ display:flex; flex-direction:column; align-items:center; }
+  .flow-head.centered .flow-head-top{ align-self:stretch; }
+  /* tracking has 5 longer step names: let each bar fit its label */
+  .page-tracking .flow-steps li{ width:auto; min-width:64px; white-space:nowrap; }
 
   .flow-page .flow-body{ padding-top:28px; }
   .page-checkout .flow-body{
@@ -1003,4 +1015,216 @@ a.order-card:hover{ border-color:var(--green); }
   }
   .page-checkout .checkout-side .sticky-footer{ margin:16px 0 0; max-width:none; }
   .page-checkout .checkout-side .pay-row{ border:none; box-shadow:none; padding:0; }
+}
+
+
+/* =========================================================
+   BUYER PAGES REDESIGN — customer front end
+   (sign in, home, stall, item, cart)
+   ========================================================= */
+
+/* ---- sign in: green welcome block ---- */
+.page-signin .signin-top{
+  margin:0 -28px; padding:calc(env(safe-area-inset-top,0px) + 52px) 28px 30px;
+  background:var(--green); color:var(--white); border-bottom:4px solid var(--yellow);
+}
+.page-signin .brand-mark{ background:var(--white); color:var(--green); width:68px; height:68px; margin-bottom:14px; }
+.page-signin .signin-top h2{ font-family:"DM Serif Display",Georgia,serif; font-weight:400; font-size:38px; letter-spacing:0; margin:0 0 4px; }
+.page-signin .signin-top p{ color:rgba(255,255,255,0.85); }
+
+/* ---- home ---- */
+.page-home .brand-row{ display:flex; align-items:center; justify-content:space-between; }
+.page-home .wordmark{ font-family:"DM Serif Display",Georgia,serif; font-size:26px; font-weight:400; line-height:1; }
+.page-home .home-header .icon-btn{ width:34px; height:34px; background:rgba(255,255,255,0.16); border-color:transparent; color:var(--white); }
+.page-home .home-header h2{ margin:12px 0 0; font-size:22px; }
+.page-home .search-bar{ background:var(--white); border-color:var(--white); margin-top:12px; }
+.page-home .home-body .chip-row{ margin-top:16px; }
+.page-home .section-label{ margin-top:22px; }
+.page-home .chip-row{ scrollbar-width:none; }
+.page-home .chip-row::-webkit-scrollbar{ display:none; }
+.page-home .reserve-banner .btn-mini{
+  flex-shrink:0; background:var(--green); color:var(--white);
+  font-size:13px; font-weight:600; padding:8px 14px; border-radius:var(--radius-sm);
+}
+.page-home .stall-card{ flex-direction:column; gap:0; padding:0; overflow:hidden; }
+.page-home .stall-thumb{ width:100%; height:76px; border-radius:0; background:var(--tan-soft); color:var(--yellow-deep); }
+.page-home .stall-info{ flex-direction:row; align-items:center; justify-content:space-between; padding:11px 14px; gap:10px; }
+.page-home .stall-info .text{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+.page-home .open-badge{
+  flex-shrink:0; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;
+  background:var(--green-tint); color:var(--green-deep);
+}
+.page-home .stall-card.disabled .open-badge{ background:var(--border-soft); color:var(--ink-soft); }
+
+/* ---- stall ---- */
+.flow-head-name{ font-family:"DM Serif Display",Georgia,serif; font-weight:400; font-size:28px; letter-spacing:0; margin:10px 0 0; line-height:1.1; }
+.flow-head-badge{
+  font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px;
+  background:var(--yellow); color:var(--ink);
+}
+.page-stall .tab-row{ padding-top:16px; }
+.page-stall .segtab.active{ background:var(--green); border-color:var(--green); }
+.page-stall .menu-thumb{ display:flex; align-items:center; justify-content:center; color:var(--yellow-deep); }
+.page-stall .menu-thumb svg{ width:22px; height:22px; }
+.menu-text .menu-desc{ display:block; font-size:12.5px; color:var(--ink-soft); margin:1px 0 2px; }
+.page-stall .menu-text .price{ font-weight:700; color:var(--ink); }
+
+/* ---- item ---- */
+.page-item .item-photo{ position:relative; border-bottom:4px solid var(--yellow); background:var(--tan-soft); color:var(--yellow-deep); }
+.page-item .item-title-row{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.page-item .item-title-row h2{ margin:0; }
+.page-item .item-price{ margin:0; font-size:18px; }
+.page-item .item-desc{ margin-top:8px; }
+.page-item .section-label{ margin:0 0 6px; }
+.page-item .addon-row{ cursor:pointer; }
+.page-item .addon-row input{ width:20px; height:20px; accent-color:var(--green); flex-shrink:0; margin:0; }
+.page-item .note-field{ margin-top:22px; }
+.page-item .stepper button{ cursor:pointer; }
+
+/* ---- cart ---- */
+.page-cart .cart-stall-label{
+  font-size:14px; font-weight:700; color:var(--ink);
+  border-left:3px solid var(--yellow); padding-left:9px; margin:18px 0 10px;
+}
+.page-cart .cart-stall-label:first-child{ margin-top:4px; }
+.page-cart .cart-footer .btn{ justify-content:space-between; padding:14px 18px; }
+
+@media (min-width:860px){
+  .page-home .home-header{ max-width:none; margin:0; justify-content:flex-end; }
+  .page-home .brand-row{ display:none; }
+  .page-home .home-header h2{ margin:0; font-size:26px; }
+  .page-home .search-bar{ max-width:440px; margin-top:14px; }
+  .page-home .stall-thumb{ height:110px; }
+  .page-home .stall-info{ padding:12px 14px; gap:10px; }
+  #screen-home .stall-card{ padding:0; }
+  .page-stall .stall-layout{ padding-top:8px; }
+  .page-stall .menu-col .tab-row{ padding-top:20px; }
+  .page-item .item-layout{ padding-top:28px; }
+  .page-item .item-photo{ border-bottom:4px solid var(--yellow); }
+  .page-cart .cart-body{ padding-top:28px; }
+  .page-cart .cart-summary-col .summary-box{ border-top:none; padding-top:0; margin-top:0; }
+}
+
+
+/* ---- reserve, reservations, reservation confirmed, profile ---- */
+.page-reserve .rsv-body .section-label,
+.page-reservations .rsv-body .section-label{ margin:22px 0 12px; }
+.page-reserve .rsv-body .section-label:first-child,
+.page-reservations .rsv-body .section-label:first-child{ margin-top:18px; }
+.page-reserve .rsv-table[aria-pressed="true"]{ background:var(--yellow); border-color:var(--yellow); color:var(--ink); }
+.page-reserve .rsv-table[aria-pressed="true"] small{ color:var(--ink-soft); }
+.page-reserve .rsv-legend i.picked{ background:var(--yellow); border-color:var(--yellow); }
+
+.page-reservations .rsv-card.current .rsv-badge{ background:var(--yellow); color:var(--ink); }
+
+.page-reservation-confirmed .rsv-qr-wrap{ text-align:center; padding-top:22px; }
+.page-reservation-confirmed .rsv-qr{ width:170px; height:170px; margin:0 auto; padding:14px; border:1.5px solid var(--border); }
+.page-reservation-confirmed .rsv-qr svg{ width:100%; height:100%; opacity:1; }
+.rsv-qr-note{ font-size:12.5px; color:var(--ink-faint); margin:10px 0 0; }
+
+/* profile is a main tab: no back button, avatar + name centered in the header */
+.page-profile .flow-head{ justify-content:center; }
+.page-profile .flow-head .prof-head{ padding:0; }
+.page-profile .prof-avatar{ background:var(--yellow); border:3px solid var(--white); color:var(--green-deep); }
+.page-profile .prof-head h2{ font-size:21px; color:var(--white); }
+.page-profile .prof-head p{ font-size:13.5px; color:rgba(255,255,255,0.9); }
+.page-profile .prof-body{ padding-top:18px; }
+
+@media (min-width:860px){
+  .page-profile .flow-head{ display:flex; justify-content:center; align-items:stretch; }
+  .page-profile .flow-head .prof-head{ padding:0; }
+  .page-reservation-confirmed .rsv-qr-wrap{ padding-top:32px; }
+}
+
+
+/* ---- photos (stand-ins from Unsplash, see assets/img/CREDITS.md) ---- */
+.photo-img{ width:100%; height:100%; object-fit:cover; display:block; }
+.page-home .stall-thumb, .page-stall .menu-thumb, .page-item .item-photo{ overflow:hidden; }
+
+
+/* ---- profile: ID strip, favourites, grouped settings ---- */
+.prof-id{
+  margin-top:14px; background:rgba(255,255,255,0.12); border-radius:12px; padding:10px 12px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+}
+.prof-id span{ display:block; font-size:11.5px; color:rgba(255,255,255,0.75); }
+.prof-id strong{ font-size:16px; letter-spacing:0.04em; }
+.prof-id-btn{
+  display:flex; align-items:center; gap:6px; flex-shrink:0; cursor:pointer;
+  background:var(--white); color:var(--green); border:none; border-radius:var(--radius-sm);
+  padding:9px 12px; font-size:13px; font-weight:700;
+}
+.prof-id-btn svg{ width:16px; height:16px; }
+
+/* phone order: favourites, account, support, sign out */
+.prof-cols{ display:flex; flex-direction:column; }
+.prof-col{ display:contents; }
+.page-profile .prof-col:last-child > *{ order:1; }
+.page-profile .prof-support-label, .page-profile .prof-support{ order:2; }
+.page-profile .prof-col > .prof-signout-link{ order:3; }
+.page-profile .prof-body .section-label{
+  margin:22px 0 10px; border-left:none; padding-left:2px;
+  font-size:11.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft);
+  display:flex; align-items:center; gap:7px;
+}
+/* small gold dot instead of the bar */
+.page-profile .prof-body .section-label::before{
+  content:""; width:6px; height:6px; border-radius:50%; background:var(--yellow); flex-shrink:0;
+}
+.page-profile .prof-body .section-label:first-child{ margin-top:4px; }
+@media (max-width:859px){ .page-profile .prof-col:last-child > .section-label:first-child{ margin-top:22px; } }
+
+.fav-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.fav-card{
+  display:flex; flex-direction:column; overflow:hidden; background:var(--white);
+  border:1.5px solid var(--border); border-radius:var(--radius-md); font-size:13px; font-weight:700;
+}
+.fav-card img{ height:64px; }
+.fav-card span{ padding:8px 10px; }
+.fav-card:hover{ border-color:var(--green); }
+.fav-add{ border-style:dashed; align-items:center; justify-content:center; color:var(--green); min-height:96px; }
+
+.prof-group{ border:1.5px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; }
+.prof-group .prof-row{ border:none; border-radius:0; border-top:1px solid var(--border-soft); }
+.prof-group .prof-row:first-child{ border-top:none; }
+.prof-signout-link{ display:block; text-align:center; color:#C4472B; font-weight:600; font-size:14px; margin:22px 0 30px; }
+
+.id-dialog{ border:none; border-radius:20px; padding:24px 22px; text-align:center; width:min(320px, calc(100% - 32px)); color:var(--ink); }
+.id-dialog::backdrop{ background:rgba(19,42,30,0.5); }
+.id-dialog-name{ font-size:18px; font-weight:700; margin:0; }
+.id-dialog-sub{ font-size:13px; color:var(--ink-soft); margin:4px 0 16px; }
+.id-dialog-qr{ width:190px; height:190px; margin:0 auto 18px; padding:12px; border:1.5px solid var(--border); border-radius:var(--radius-lg); }
+
+/* Edit profile: round icon in the corner on phones, labelled button on desktop */
+.page-profile .flow-head{ position:relative; }
+.prof-edit{
+  position:absolute; top:calc(env(safe-area-inset-top,0px) + 14px); right:20px;
+  width:34px; height:34px; border-radius:50%; padding:0; cursor:pointer;
+  background:rgba(255,255,255,0.16); border:none; color:var(--white);
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.prof-edit svg{ width:16px; height:16px; flex-shrink:0; }
+.prof-edit span{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+@media (min-width:860px){
+  /* one row: avatar + name on the left, ID strip and Edit profile on the right */
+  .page-profile .flow-head{ flex-direction:row; align-items:center; justify-content:flex-start; gap:28px; }
+  .page-profile .flow-head .prof-head{ flex:1; min-width:0; gap:18px; }
+  .page-profile .prof-avatar{ width:72px; height:72px; font-size:22px; border-width:4px; }
+  .page-profile .prof-head h2{ font-size:28px; margin-bottom:2px; }
+  .page-profile .prof-head p{ font-size:15px; }
+  .page-profile .prof-id{ margin-top:0; padding:10px 10px 10px 16px; gap:24px; }
+  .page-profile .prof-id strong{ font-size:18px; }
+  .page-profile .prof-id-btn{ font-size:14px; padding:10px 14px; }
+  .prof-edit{
+    position:static; width:auto; height:auto; border-radius:var(--radius-md);
+    padding:10px 16px; background:transparent; border:1.5px solid rgba(255,255,255,0.55);
+    font-size:14px; font-weight:600;
+  }
+  .prof-edit:hover{ background:rgba(255,255,255,0.1); }
+  .prof-edit span{ position:static; width:auto; height:auto; overflow:visible; clip:auto; }
+  .page-profile .prof-cols{ display:grid; grid-template-columns:1fr 1fr; gap:32px; align-items:start; }
+  .page-profile .prof-col{ display:block; }
+  .page-profile .prof-body .section-label:first-child{ margin-top:8px; }
+  .page-profile .prof-signout-link{ text-align:right; margin-top:16px; }
 }

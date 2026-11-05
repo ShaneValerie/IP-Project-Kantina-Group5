@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart — Kantina</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">
 </head>
-<body class="page-cart">
+<body class="page-cart flow-page">
 <div class="app-frame" id="screen-cart">
   <div class="topnav">
     <div class="topnav-inner">
@@ -27,12 +28,18 @@
       </div>
     </div>
   </div>
-  <div class="appbar">
-    <a class="icon-btn" href="stall.html">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
-    <h1>Your cart</h1>
+  <header class="flow-head">
+  <div class="flow-head-top">
+    <a class="icon-btn" href="stall.html" aria-label="Back to menu"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
+  <div class="flow-head-text">
+    <span class="flow-head-meta">Step 1 of 3</span>
+    <h1>Your tray, Ana</h1>
+    <p id="cart-sub">2 items from 2 stalls</p>
+  </div>
+  <ol class="flow-steps" aria-label="Checkout progress: step 1 of 3"><li class="done"><span>Cart</span></li><li><span>Checkout</span></li><li><span>Done</span></li></ol>
+  </header>
+
   <div class="scroll" style="position:relative;">
     <div class="cart-body">
       <div class="cart-layout">
@@ -75,7 +82,7 @@
             <div class="summary-row total"><span>Total</span><span id="cart-total">₱150</span></div>
           </div>
           <div class="cart-footer">
-            <a class="btn btn-primary" href="checkout.html">Checkout</a>
+            <a class="btn btn-primary" href="checkout.html"><span>Checkout</span><span id="cart-btn-total">₱150</span></a>
           </div>
         </div>
       </div>
@@ -95,12 +102,18 @@
     const fee = prices.length ? SERVICE_FEE : 0;
     document.getElementById('cart-fee').textContent = peso(fee);
     document.getElementById('cart-total').textContent = peso(subtotal + fee);
+    document.getElementById('cart-btn-total').textContent = peso(subtotal + fee);
+    const stalls = document.querySelectorAll('.cart-stall-label').length;
+    document.getElementById('cart-sub').textContent = prices.length
+      ? prices.length + (prices.length === 1 ? ' item' : ' items') + ' from ' + stalls + (stalls === 1 ? ' stall' : ' stalls')
+      : 'Nothing here yet';
     if (!prices.length) {
       const col = document.querySelector('.cart-items-col');
       col.innerHTML = '<p class="cart-stall-label">Your cart is empty</p><a class="link-btn" href="home.html">Browse stalls \u2192</a>';
       const checkout = document.querySelector('.cart-footer .btn');
       checkout.setAttribute('href', 'home.html');
       checkout.textContent = 'Back to home';
+      checkout.style.justifyContent = 'center';
     }
   }
   document.querySelectorAll('.cart-item .remove').forEach(btn => {

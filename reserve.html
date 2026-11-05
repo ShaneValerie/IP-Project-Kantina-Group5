@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Reserve a table — Kantina</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">
 </head>
-<body class="page-reserve">
+<body class="page-reserve flow-page">
 <div class="app-frame" id="screen-reserve">
   <div class="topnav">
     <div class="topnav-inner">
@@ -28,12 +29,15 @@
     </div>
   </div>
 
-  <div class="appbar">
-    <a class="icon-btn" href="home.html" aria-label="Back to home">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
-    <h1>Reserve a table</h1>
+  <header class="flow-head">
+  <div class="flow-head-top">
+    <a class="icon-btn" href="home.html" aria-label="Back to home"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
+  <div class="flow-head-text">
+    <h1>Save a seat, Ana</h1>
+    <p>Pick a day, time and table</p>
+  </div>
+  </header>
 
   <div class="scroll" style="position:relative;">
     <div class="rsv-body">
@@ -70,7 +74,7 @@
         </div>
 
         <div>
-          <div class="section-label">Pick a table · Main hall</div>
+          <div class="section-label">Pick a table · Lawrence Bunzel Canteen</div>
           <div class="rsv-floor">
             <div class="rsv-floor-grid" id="table-group" role="group" aria-label="Floor plan">
               <button class="rsv-table" type="button" data-table="T-01" aria-pressed="false">T-01<small>2 seats</small></button>
