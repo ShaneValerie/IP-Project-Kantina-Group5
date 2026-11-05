@@ -33,12 +33,37 @@
     </aside>
 
     <main class="content" id="content">
-      <div class="schedule">
-        <div class="schedule-row schedule-header" id="schedule-header"></div>
-        <div class="schedule-body" id="schedule-body"></div>
-      </div>
 
-      <p class="schedule-hint">Click a cell to block a table for cleaning or an event.</p>
+      <section class="floor" aria-labelledby="floor-title">
+        <div class="section-head">
+          <h2 class="section-title" id="floor-title">Floor map</h2>
+          <div class="time-picker" id="time-picker" role="group" aria-label="Show table status at"></div>
+        </div>
+
+        <div class="legend" aria-hidden="true">
+          <span class="legend__item"><span class="swatch swatch--free"></span>Free</span>
+          <span class="legend__item"><span class="swatch swatch--filled"></span>Reserved</span>
+          <span class="legend__item"><span class="swatch swatch--block"></span>Blocked</span>
+        </div>
+
+        <div class="floor-plan">
+          <div class="floor-plan__landmark">Food stalls</div>
+          <div class="floor-grid" id="floor-grid"></div>
+          <div class="floor-plan__landmark floor-plan__landmark--entrance">Entrance</div>
+        </div>
+
+        <p class="floor-summary" id="floor-summary"></p>
+      </section>
+
+      <section class="availability" aria-labelledby="availability-title">
+        <h2 class="section-title" id="availability-title">Table availability</h2>
+        <div class="schedule" id="schedule">
+          <div class="schedule-row schedule-header" id="schedule-header"></div>
+          <div class="schedule-body" id="schedule-body"></div>
+        </div>
+
+        <p class="schedule-hint">Click a table on the map to jump to its row. Click a free slot to block it for cleaning or an event.</p>
+      </section>
 
       <div class="no-shows-card">
         <h2 id="no-shows-title">No-shows today · 2</h2>
@@ -56,19 +81,110 @@
 (function () {
 
   const timeSlots = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30"];
+  const COLS = 4;
+  const ROWS = 10;
 
-  let tables = [
-    { id: "T-04", slots: ["free", "held", "booked", "free", "free", "block"] },
-    { id: "T-12", slots: ["free", "free", "Ana R.", "Ana R.", "free", "free"] },
-    { id: "T-15", slots: ["booked", "free", "free", "booked", "free", "free"] },
-  ];
+  // ── Temporary data: 40 tables, T-01 … T-40, laid out row by row ──
+  const SAMPLE = {
+    "T-04": ["free", "held", "booked", "free", "free", "block"],
+    "T-12": ["free", "free", "Ana R.", "Ana R.", "free", "free"],
+    "T-15": ["booked", "free", "free", "booked", "free", "free"],
+    "T-02": ["booked", "booked", "free", "free", "free", "free"],
+    "T-07": ["free", "free", "booked", "booked", "free", "free"],
+    "T-09": ["block", "block", "free", "free", "free", "free"],
+    "T-18": ["free", "Leo M.", "Leo M.", "free", "free", "free"],
+    "T-21": ["free", "free", "booked", "free", "booked", "free"],
+    "T-23": ["held", "free", "free", "free", "free", "free"],
+    "T-26": ["free", "free", "booked", "booked", "booked", "free"],
+    "T-30": ["free", "free", "free", "free", "block", "block"],
+    "T-33": ["booked", "free", "free", "free", "free", "booked"],
+    "T-37": ["free", "free", "Mia S.", "free", "free", "free"],
+    "T-40": ["free", "booked", "booked", "free", "free", "free"],
+  };
 
+  let tables = Array.from({ length: COLS * ROWS }, (_, i) => {
+    const id = "T-" + String(i + 1).padStart(2, "0");
+    return { id, slots: (SAMPLE[id] || timeSlots.map(() => "free")).slice() };
+  });
+
+  let activeSlot = 0;        // which time slot the map shows
+  let selectedTable = null;  // table highlighted from the map
+
+  const pickerEl = document.getElementById("time-picker");
+  const gridEl = document.getElementById("floor-grid");
+  const summaryEl = document.getElementById("floor-summary");
   const headerEl = document.getElementById("schedule-header");
   const bodyEl = document.getElementById("schedule-body");
 
+  function kindOf(status) {
+    if (status === "free") return "free";
+    if (status === "block") return "block";
+    return "filled";
+  }
+
+  // ── Time picker ──
+  function renderPicker() {
+    pickerEl.innerHTML = timeSlots.map((t, i) =>
+      `<button type="button" data-slot="${i}" aria-pressed="${i === activeSlot}"
+        class="${i === activeSlot ? "is-active" : ""}">${t}</button>`
+    ).join("");
+  }
+
+  pickerEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-slot]");
+    if (!btn) return;
+    activeSlot = Number(btn.dataset.slot);
+    renderPicker();
+    renderMap();
+    renderHeader();
+    render();
+  });
+
+  // ── Floor map ──
+  function renderMap() {
+    gridEl.innerHTML = "";
+    const counts = { free: 0, filled: 0, block: 0 };
+
+    tables.forEach(table => {
+      const status = table.slots[activeSlot];
+      const kind = kindOf(status);
+      counts[kind]++;
+
+      const tile = document.createElement("button");
+      tile.type = "button";
+      tile.className = `floor-table floor-table--${kind}` +
+        (table.id === selectedTable ? " is-selected" : "");
+      tile.dataset.table = table.id;
+      tile.setAttribute("aria-label", `${table.id}, ${status} at ${timeSlots[activeSlot]}`);
+      tile.innerHTML = `
+        <span class="floor-table__id">${table.id}</span>
+        <span class="floor-table__status">${escapeHtml(status)}</span>
+      `;
+      gridEl.appendChild(tile);
+    });
+
+    summaryEl.textContent =
+      `At ${timeSlots[activeSlot]}: ${counts.free} free · ${counts.filled} reserved · ${counts.block} blocked`;
+  }
+
+  gridEl.addEventListener("click", (e) => {
+    const tile = e.target.closest(".floor-table");
+    if (!tile) return;
+    selectedTable = selectedTable === tile.dataset.table ? null : tile.dataset.table;
+    renderMap();
+    render();
+
+    if (selectedTable) {
+      const row = bodyEl.querySelector(`[data-row="${selectedTable}"]`);
+      if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  });
+
+  // ── Availability schedule ──
   function renderHeader() {
     headerEl.innerHTML = `<span>Table</span>` +
-      timeSlots.map(t => `<span>${t}</span>`).join("");
+      timeSlots.map((t, i) =>
+        `<span class="${i === activeSlot ? "is-current" : ""}">${t}</span>`).join("");
   }
 
   function render() {
@@ -76,7 +192,8 @@
 
     tables.forEach(table => {
       const row = document.createElement("div");
-      row.className = "schedule-row";
+      row.className = "schedule-row" + (table.id === selectedTable ? " is-selected" : "");
+      row.dataset.row = table.id;
 
       const label = document.createElement("span");
       label.className = "table-label";
@@ -92,22 +209,20 @@
   }
 
   function buildCell(tableId, slotIndex, status) {
-    const isFree = status === "free";
-    const isBlocked = status === "block";
-    const kind = isFree ? "free" : isBlocked ? "block" : "filled";
+    const kind = kindOf(status);
 
     const cell = document.createElement("button");
     cell.type = "button";
-    cell.className = `slot-cell slot-cell--${kind}`;
+    cell.className = `slot-cell slot-cell--${kind}` + (slotIndex === activeSlot ? " is-current" : "");
     cell.textContent = status;
     cell.dataset.table = tableId;
     cell.dataset.slot = slotIndex;
 
     if (kind === "filled") {
       cell.disabled = true;
-      cell.title = "Live reservation \u2014 manage it from Orders";
+      cell.title = "Live reservation — manage it from Orders";
     } else {
-      cell.title = isFree ? "Click to block this slot" : "Click to free this slot";
+      cell.title = kind === "free" ? "Click to block this slot" : "Click to free this slot";
     }
 
     return cell;
@@ -123,7 +238,14 @@
     const slotIndex = Number(cell.dataset.slot);
     table.slots[slotIndex] = table.slots[slotIndex] === "free" ? "block" : "free";
     render();
+    renderMap();
   });
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
   const navList = document.getElementById("nav-list");
   const sidebarFooter = document.querySelector(".sidebar-footer");
@@ -141,6 +263,8 @@
     });
   });
 
+  renderPicker();
+  renderMap();
   renderHeader();
   render();
 
