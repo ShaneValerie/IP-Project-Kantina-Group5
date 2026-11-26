@@ -1,0 +1,723 @@
+openapi: 3.0.3
+info:
+  title: Kantina API
+  version: "1.0"
+  description: |
+    REST API of **Kantina**, the pre-ordering and table reservation system of the
+    Lawrence Bunzel Canteen (University of San Carlos).
+
+    Kantina integrates two other systems:
+    * **Kantina ERP**: item master (price, stock), sales ledger, sales reports
+    * **Kantina CMS**: stall profiles, menu content, photos, announcements
+
+    Sign in with `POST /auth/login` (student `21-0942` / `kantina123`) or
+    `POST /auth/staff/login` (`stall-01` / `kantina123`), then click **Authorize**
+    and paste the token.
+
+    Errors always look like `{"error": {"code": "...", "message": "...", "fields": {...}}}`.
+servers:
+  - url: ..
+    description: This Kantina server
+tags:
+  - name: System
+  - name: Auth
+  - name: Catalog
+    description: Served from Kantina's cache of CMS content + ERP prices/stock
+  - name: Ordering
+  - name: Reservations
+  - name: Profile
+  - name: Store console
+    description: Staff only; limited to the staff member's own stall
+  - name: Integrations
+    description: Webhooks from the ERP/CMS, sync, outbox and status
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    webhookSignature:
+      type: apiKey
+      in: header
+      name: X-Kantina-Signature
+      description: 't=<unix time>,v1=<hex HMAC-SHA256 of "<t>.<raw body>"> using the shared webhook secret'
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  parameters:
+    ref:
+      name: ref
+      in: path
+      required: true
+      schema: { type: string }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: sold_out }
+            message: { type: string, example: Bangsilog is sold out today. }
+            fields: { type: object, additionalProperties: true }
+    User:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        role: { type: string, enum: [student, staff, admin] }
+        name: { type: string, example: Ana Reyes }
+        first_name: { type: string, example: Ana }
+        initials: { type: string, example: AR }
+        student_id: { type: string, example: 21-0942 }
+        email: { type: string, example: ana.reyes@example.com }
+        program: { type: string, example: BS CS }
+        grad_year: { type: integer, example: 2027 }
+        notify_ready: { type: boolean }
+        account: { type: string, description: staff only, example: stall-01 }
+        stall: { type: object, description: staff only, properties: { id: { type: string }, name: { type: string } } }
+    Session:
+      type: object
+      properties:
+        token: { type: string }
+        user: { $ref: '#/components/schemas/User' }
+    Stall:
+      type: object
+      properties:
+        id: { type: string, example: lolas-silog }
+        name: { type: string, example: "Lola's Silog" }
+        category: { type: string, example: Rice meals }
+        description: { type: string }
+        photo_url: { type: string, nullable: true }
+        counter: { type: string, example: Counter 2 }
+        prep_minutes: { type: integer, example: 10 }
+        opens_at: { type: string, example: "07:00" }
+        closes_at: { type: string, example: "18:00" }
+        is_open: { type: boolean }
+        accepts_orders: { type: boolean, description: false only when temporarily closed in the CMS }
+        temporarily_closed: { type: boolean }
+        status_text: { type: string, example: Closed until 2 PM }
+    MenuItem:
+      type: object
+      properties:
+        sku: { type: string, example: LS-TAPSILOG }
+        name: { type: string, example: Tapsilog }
+        description: { type: string }
+        type: { type: string, enum: [menu, addon] }
+        section: { type: string, example: Silog }
+        price: { type: number, example: 85 }
+        photo_url: { type: string, nullable: true }
+        available: { type: boolean }
+        sold_out: { type: boolean }
+        stock: { type: integer, nullable: true }
+        low_stock: { type: boolean }
+    OrderItemInput:
+      type: object
+      required: [sku, qty]
+      properties:
+        sku: { type: string, example: LS-TAPSILOG }
+        qty: { type: integer, minimum: 1, maximum: 20, example: 1 }
+        addons: { type: array, items: { type: string }, example: [LS-ADD-RICE] }
+        note: { type: string, maxLength: 200, example: no onions }
+    LineItem:
+      type: object
+      properties:
+        sku: { type: string }
+        name: { type: string }
+        qty: { type: integer }
+        unit_price: { type: number }
+        addons: { type: array, items: { type: object, properties: { name: { type: string }, price: { type: number } } } }
+        note: { type: string, nullable: true }
+        line_total: { type: number }
+    Checkout:
+      type: object
+      properties:
+        ref: { type: string, example: CHK-10023 }
+        payment_method: { type: string, enum: [gcash, counter] }
+        payment_status: { type: string, enum: [unpaid, paid, cancelled] }
+        subtotal: { type: number }
+        service_fee: { type: number, example: 5 }
+        total: { type: number }
+        pickup_date: { type: string, format: date }
+        pickup_time: { type: string, example: "12:00" }
+        pickup_label: { type: string, example: "Today · 12:00" }
+        table: { type: object, nullable: true, properties: { code: { type: string }, ref: { type: string }, window: { type: string } } }
+        orders:
+          type: array
+          items:
+            type: object
+            properties:
+              ref: { type: string, example: KTN-90214 }
+              id: { type: integer }
+              stall: { type: object, properties: { id: { type: string }, name: { type: string } } }
+              counter: { type: string }
+              status: { type: string }
+              status_label: { type: string }
+              subtotal: { type: number }
+        items:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/LineItem'
+              - type: object
+                properties: { stall_name: { type: string } }
+    OrderSummary:
+      type: object
+      properties:
+        ref: { type: string, example: KTN-90214 }
+        id: { type: integer, example: 90214 }
+        checkout_ref: { type: string }
+        stall: { type: object, properties: { id: { type: string }, name: { type: string } } }
+        status: { type: string, enum: [pending, paid, preparing, ready, completed, cancelled] }
+        status_label: { type: string, example: Preparing }
+        progress: { type: object, properties: { step: { type: integer }, total: { type: integer } } }
+        pickup_date: { type: string, format: date }
+        pickup_day: { type: string, example: Today }
+        pickup_time: { type: string, example: "12:00" }
+        table: { type: string, nullable: true }
+        total: { type: number }
+        items_count: { type: integer }
+        items_text: { type: string, example: 1× Tapsilog }
+        payment_method: { type: string, enum: [gcash, counter] }
+        placed_at: { type: string, format: date-time }
+    OrderDetail:
+      allOf:
+        - $ref: '#/components/schemas/OrderSummary'
+        - type: object
+          properties:
+            headline: { type: string, example: Your food is cooking }
+            eta_text: { type: string, example: Ready in about 6 minutes }
+            counter: { type: string }
+            payment_status: { type: string }
+            cancel_reason: { type: string, nullable: true }
+            can_cancel: { type: boolean }
+            items: { type: array, items: { $ref: '#/components/schemas/LineItem' } }
+            timeline:
+              type: array
+              items:
+                type: object
+                properties:
+                  key: { type: string, enum: [placed, paid, preparing, ready, completed, cancelled] }
+                  title: { type: string }
+                  at: { type: string, nullable: true, example: "11:04 AM" }
+                  sub: { type: string, nullable: true }
+                  done: { type: boolean }
+                  current: { type: boolean }
+    Reservation:
+      type: object
+      properties:
+        ref: { type: string, example: RSV-1042 }
+        table: { type: string, example: T-12 }
+        seats: { type: integer }
+        date: { type: string, format: date }
+        day_label: { type: string, example: Today }
+        time: { type: string, example: "12:00" }
+        end_time: { type: string, example: "12:45" }
+        window: { type: string, example: "12:00 – 12:45" }
+        party_size: { type: integer }
+        status: { type: string, enum: [booked, checked_in, completed, cancelled, released] }
+        status_label: { type: string, example: Upcoming }
+        detail: { type: string }
+        hold_until: { type: string, example: "12:10" }
+        can_check_in: { type: boolean }
+        can_cancel: { type: boolean }
+    SellerOrder:
+      type: object
+      properties:
+        id: { type: integer, example: 90214 }
+        ref: { type: string }
+        status: { type: string }
+        customer: { type: string, example: Ana R. }
+        items_text: { type: string }
+        items: { type: array, items: { type: object, properties: { name: { type: string }, qty: { type: integer }, addons: { type: array, items: { type: string } }, note: { type: string, nullable: true } } } }
+        total: { type: number }
+        payment_method: { type: string }
+        paid: { type: boolean }
+        can_accept: { type: boolean }
+        pickup_date: { type: string }
+        pickup_day: { type: string }
+        pickup_time: { type: string }
+        table: { type: string, nullable: true }
+        minutes_in_status: { type: integer }
+        minutes_until_pickup: { type: integer }
+    SellerMenuItem:
+      type: object
+      properties:
+        sku: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        section: { type: string }
+        type: { type: string, enum: [menu, addon] }
+        price: { type: number }
+        stock: { type: integer, nullable: true }
+        track_stock: { type: boolean }
+        available: { type: boolean }
+        sold_out: { type: boolean }
+        published: { type: boolean }
+        photo_url: { type: string, nullable: true }
+    WebhookEvent:
+      type: object
+      required: [id, event, data]
+      properties:
+        id: { type: string, example: evt_3f9a1c2b }
+        event: { type: string, example: stock.depleted }
+        source: { type: string, enum: [erp, cms] }
+        created_at: { type: string, format: date-time }
+        data: { type: object, additionalProperties: true }
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      security: []
+      responses:
+        '200': { description: OK, content: { application/json: { example: { ok: true, app: kantina, time: '2026-11-28T11:00:00+08:00', db: true } } } }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Student sign-in (student ID or email)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [login, password], properties: { login: { type: string, example: 21-0942 }, password: { type: string, example: kantina123 } } }
+      responses:
+        '200': { description: Signed in, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /auth/staff/login:
+    post:
+      tags: [Auth]
+      summary: Stall staff / admin sign-in
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [account, password], properties: { account: { type: string, example: stall-01 }, password: { type: string, example: kantina123 } } }
+      responses:
+        '200': { description: Signed in, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Create a student account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id, name, email, password]
+              properties:
+                student_id: { type: string, example: 24-10001 }
+                name: { type: string, example: Juan Dela Cruz }
+                email: { type: string, example: juan@example.com }
+                password: { type: string, minLength: 8 }
+                program: { type: string, example: BS IT }
+                grad_year: { type: integer, example: 2028 }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: The signed-in user
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { user: { $ref: '#/components/schemas/User' } } } } } }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /stalls:
+    get:
+      tags: [Catalog]
+      summary: Stalls with open/closed status
+      security: []
+      parameters:
+        - { name: category, in: query, schema: { type: string, example: Drinks } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stalls: { type: array, items: { $ref: '#/components/schemas/Stall' } }
+                  open_count: { type: integer }
+                  categories: { type: array, items: { type: string } }
+  /stalls/{id}:
+    get:
+      tags: [Catalog]
+      summary: One stall
+      security: []
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, example: lolas-silog } } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { stall: { $ref: '#/components/schemas/Stall' } } } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /stalls/{id}/menu:
+    get:
+      tags: [Catalog]
+      summary: A stall's menu grouped by section
+      security: []
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, example: lolas-silog } } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stall: { $ref: '#/components/schemas/Stall' }
+                  sections: { type: array, items: { type: object, properties: { name: { type: string }, items: { type: array, items: { $ref: '#/components/schemas/MenuItem' } } } } }
+  /menu-items/{sku}:
+    get:
+      tags: [Catalog]
+      summary: One menu item with its add-ons
+      security: []
+      parameters: [ { name: sku, in: path, required: true, schema: { type: string, example: LS-TAPSILOG } } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item: { $ref: '#/components/schemas/MenuItem' }
+                  addons: { type: array, items: { type: object, properties: { sku: { type: string }, name: { type: string }, price: { type: number }, available: { type: boolean } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /announcements:
+    get:
+      tags: [Catalog]
+      summary: Live announcements from the CMS
+      security: []
+      responses:
+        '200': { description: OK }
+
+  /pickup-slots:
+    get:
+      tags: [Ordering]
+      summary: Pickup times for a date and the stalls in the tray
+      security: []
+      parameters:
+        - { name: date, in: query, schema: { type: string, format: date } }
+        - { name: stalls, in: query, description: comma-separated stall ids, schema: { type: string, example: 'lolas-silog,kape-kanto' } }
+      responses:
+        '200': { description: OK }
+  /orders:
+    post:
+      tags: [Ordering]
+      summary: Check out the tray (one order per stall; synced to the ERP)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, pickup_time, payment_method]
+              properties:
+                items: { type: array, items: { $ref: '#/components/schemas/OrderItemInput' } }
+                pickup_date: { type: string, format: date }
+                pickup_time: { type: string, example: "12:00" }
+                payment_method: { type: string, enum: [gcash, counter] }
+                reservation_ref: { type: string, example: RSV-1042 }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { checkout: { $ref: '#/components/schemas/Checkout' } } } } } }
+        '409': { description: 'sold_out, slot_full, slot_unavailable, stall_closed, not_available, reservation_mismatch', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422': { $ref: '#/components/responses/Error' }
+    get:
+      tags: [Ordering]
+      summary: My orders
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [active, history] } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { orders: { type: array, items: { $ref: '#/components/schemas/OrderSummary' } } } } } } }
+  /orders/{ref}:
+    get:
+      tags: [Ordering]
+      summary: Order details and tracking timeline
+      parameters: [ { $ref: '#/components/parameters/ref' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { order: { $ref: '#/components/schemas/OrderDetail' } } } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /orders/{ref}/cancel:
+    post:
+      tags: [Ordering]
+      summary: Cancel before the stall starts cooking
+      parameters: [ { $ref: '#/components/parameters/ref' } ]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Error' }
+  /checkouts/{ref}:
+    get:
+      tags: [Ordering]
+      summary: Checkout / receipt
+      parameters: [ { $ref: '#/components/parameters/ref' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { checkout: { $ref: '#/components/schemas/Checkout' } } } } } }
+  /payments/{ref}/confirm:
+    post:
+      tags: [Ordering]
+      summary: Demo GCash payment (authorize or cancel)
+      parameters: [ { $ref: '#/components/parameters/ref' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [result], properties: { result: { type: string, enum: [authorized, cancelled] } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { checkout: { $ref: '#/components/schemas/Checkout' } } } } } }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /tables/availability:
+    get:
+      tags: [Reservations]
+      summary: Free / taken / blocked tables
+      security: []
+      parameters:
+        - { name: date, in: query, schema: { type: string, format: date } }
+        - { name: time, in: query, schema: { type: string, example: "12:00" } }
+        - { name: party, in: query, schema: { type: integer, example: 2 } }
+      responses:
+        '200': { description: OK }
+  /reservations:
+    post:
+      tags: [Reservations]
+      summary: Reserve a table (45 minutes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [table, date, time, party_size]
+              properties:
+                table: { type: string, example: T-12 }
+                date: { type: string, format: date }
+                time: { type: string, example: "12:00" }
+                party_size: { type: integer, example: 2 }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { reservation: { $ref: '#/components/schemas/Reservation' } } } } } }
+        '409': { description: 'table_taken, table_blocked, table_too_small, already_booked, slot_passed', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    get:
+      tags: [Reservations]
+      summary: My upcoming and past reservations
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  upcoming: { type: array, items: { $ref: '#/components/schemas/Reservation' } }
+                  past: { type: array, items: { $ref: '#/components/schemas/Reservation' } }
+  /reservations/{ref}:
+    get:
+      tags: [Reservations]
+      summary: One reservation
+      parameters: [ { $ref: '#/components/parameters/ref' } ]
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Reservations]
+      summary: Cancel a reservation
+      parameters: [ { $ref: '#/components/parameters/ref' } ]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Error' }
+  /reservations/{ref}/check-in:
+    post:
+      tags: [Reservations]
+      summary: Check in (from 15 minutes before the start)
+      parameters: [ { $ref: '#/components/parameters/ref' } ]
+      responses:
+        '200': { description: OK }
+        '409': { $ref: '#/components/responses/Error' }
+
+  /me:
+    get:
+      tags: [Profile]
+      summary: Profile, stats and favourite stalls
+      responses:
+        '200': { description: OK }
+    patch:
+      tags: [Profile]
+      summary: Update name, email or pickup alerts
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { name: { type: string }, email: { type: string }, notify_ready: { type: boolean } } }
+      responses:
+        '200': { description: OK }
+  /me/favourites/{stallId}:
+    parameters: [ { name: stallId, in: path, required: true, schema: { type: string, example: noodle-bar } } ]
+    post:
+      tags: [Profile]
+      summary: Add a favourite stall
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [Profile]
+      summary: Remove a favourite stall
+      responses:
+        '200': { description: OK }
+
+  /seller/orders:
+    get:
+      tags: [Store console]
+      summary: Orders board for my stall
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stall: { type: object }
+                  active_count: { type: integer }
+                  completed_today: { type: integer }
+                  orders: { type: array, items: { $ref: '#/components/schemas/SellerOrder' } }
+  /seller/orders/{id}/status:
+    patch:
+      tags: [Store console]
+      summary: Move an order to the next step
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer, example: 90214 } } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [status], properties: { status: { type: string, enum: [paid, preparing, ready, completed, cancelled] } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { order: { $ref: '#/components/schemas/SellerOrder' } } } } } }
+        '409': { description: 'invalid_transition, awaiting_online_payment', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /seller/menu:
+    get:
+      tags: [Store console]
+      summary: My stall's menu with price and stock
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/SellerMenuItem' } } } } } } }
+    post:
+      tags: [Store console]
+      summary: Add an item (created in the ERP and the CMS)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, price]
+              properties:
+                name: { type: string, example: Bistek with rice }
+                price: { type: number, example: 95 }
+                stock: { type: integer, example: 10 }
+                available: { type: boolean }
+                description: { type: string }
+                section: { type: string, example: Ulam }
+                type: { type: string, enum: [menu, addon] }
+      responses:
+        '201': { description: Created }
+        '502': { description: ERP or CMS not responding }
+  /seller/menu/{sku}:
+    patch:
+      tags: [Store console]
+      summary: Edit price/stock/availability (ERP) or name/description (CMS)
+      parameters: [ { name: sku, in: path, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { price: { type: number }, stock: { type: integer }, available: { type: boolean }, name: { type: string }, description: { type: string }, section: { type: string } } }
+      responses:
+        '200': { description: OK }
+        '502': { description: ERP or CMS not responding }
+  /seller/tables:
+    get:
+      tags: [Store console]
+      summary: Floor map and schedule for a day
+      parameters: [ { name: date, in: query, schema: { type: string, format: date } } ]
+      responses:
+        '200': { description: OK }
+  /seller/tables/{code}/block:
+    parameters: [ { name: code, in: path, required: true, schema: { type: string, example: T-20 } } ]
+    post:
+      tags: [Store console]
+      summary: Block a table slot (cleaning, event)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [date, time], properties: { date: { type: string, format: date }, time: { type: string, example: "12:00" }, reason: { type: string, example: Cleaning } } }
+      responses:
+        '201': { description: Blocked }
+        '409': { description: slot_reserved }
+    delete:
+      tags: [Store console]
+      summary: Unblock a table slot
+      parameters:
+        - { name: date, in: query, required: true, schema: { type: string, format: date } }
+        - { name: time, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+  /seller/analytics:
+    get:
+      tags: [Store console]
+      summary: Revenue, orders, top items, peak hours (from the ERP)
+      parameters: [ { name: range, in: query, schema: { type: integer, enum: [7, 30] } } ]
+      responses:
+        '200': { description: OK }
+        '502': { description: ERP not responding }
+
+  /integrations/erp/webhook:
+    post:
+      tags: [Integrations]
+      summary: Receive ERP events (product.updated, stock.low, stock.depleted)
+      security: [ { webhookSignature: [] } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookEvent' } } }
+      responses:
+        '200': { description: Processed (or duplicate) }
+        '401': { description: Invalid signature }
+  /integrations/cms/webhook:
+    post:
+      tags: [Integrations]
+      summary: Receive CMS events (content.published)
+      security: [ { webhookSignature: [] } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookEvent' } } }
+      responses:
+        '200': { description: Processed (or duplicate) }
+        '401': { description: Invalid signature }
+  /integrations/cms/sync:
+    post:
+      tags: [Integrations]
+      summary: Full catalog sync from the CMS and ERP
+      responses:
+        '200': { description: Synced }
+        '502': { description: CMS or ERP not responding }
+  /integrations/outbox/retry:
+    post:
+      tags: [Integrations]
+      summary: Retry ERP messages waiting in the outbox
+      responses:
+        '200': { description: Results per message }
+  /integrations/status:
+    get:
+      tags: [Integrations]
+      summary: ERP/CMS health, outbox, webhook and email logs
+      responses:
+        '200': { description: OK }
