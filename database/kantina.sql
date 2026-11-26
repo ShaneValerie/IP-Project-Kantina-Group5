@@ -61,6 +61,7 @@ CREATE TABLE stalls (
   temporarily_closed TINYINT(1)   NOT NULL DEFAULT 0,
   closed_note        VARCHAR(80)  NULL,
   sort_order         INT          NOT NULL DEFAULT 0,
+  is_published       TINYINT(1)   NOT NULL DEFAULT 1,
   synced_at          DATETIME     NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
