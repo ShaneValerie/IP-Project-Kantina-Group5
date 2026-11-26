@@ -1228,3 +1228,7 @@ a.order-card:hover{ border-color:var(--green); }
   .page-profile .prof-body .section-label:first-child{ margin-top:8px; }
   .page-profile .prof-signout-link{ text-align:right; margin-top:16px; }
 }
+
+/* ---------- Sign-in: error + demo hint ---------- */
+.signin-error{ margin:4px 0 0; padding:10px 12px; border-radius:10px; background:#FDECEA; color:#B42318; font-size:13.5px; }
+.signin-demo{ margin-top:4px; padding-bottom:0; font-size:12.5px; }
