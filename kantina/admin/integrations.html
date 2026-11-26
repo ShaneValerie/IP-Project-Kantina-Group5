@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Integrations status — Kantina</title>
+<style>
+  :root{ --green:#015E2F; --green-deep:#014A25; --tint:#E7F0EA; --ink:#132A1E; --soft:#5D6E64; --faint:#8B9990; --line:#E4E7E2; --bg:#F3F5F1;
+         --ok:#1E7B47; --ok-t:#E3F3EA; --warn:#9A6700; --warn-t:#FFF4D6; --bad:#B42318; --bad-t:#FDECEA; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); font-size:14px; line-height:1.45; }
+  header{ background:var(--green); color:#fff; padding:16px 28px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  header h1{ margin:0; font-size:18px; }
+  header small{ opacity:.85; font-weight:400; }
+  header a, header button.link{ color:#fff; background:none; border:0; font:inherit; cursor:pointer; text-decoration:underline; }
+  main{ max-width:1180px; margin:0 auto; padding:24px 20px 60px; }
+  .grid{ display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); margin-bottom:16px; }
+  .card{ background:#fff; border-radius:14px; box-shadow:0 1px 3px rgba(19,42,30,.08); padding:18px; margin-bottom:16px; }
+  .card h2{ font-size:15px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .muted{ color:var(--soft); } .small{ font-size:12px; }
+  .big{ font-size:24px; font-weight:700; }
+  .badge{ display:inline-block; padding:2px 9px; border-radius:99px; font-size:12px; font-weight:600; background:#EEF0F3; color:var(--soft); }
+  .badge.ok{ background:var(--ok-t); color:var(--ok); } .badge.warn{ background:var(--warn-t); color:var(--warn); } .badge.bad{ background:var(--bad-t); color:var(--bad); }
+  table{ width:100%; border-collapse:collapse; }
+  th,td{ text-align:left; padding:8px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--soft); }
+  tr:last-child td{ border-bottom:0; }
+  code{ font-size:12px; background:#F4F6F3; padding:1px 5px; border-radius:5px; }
+  .btn{ border:0; border-radius:9px; padding:8px 14px; font:inherit; font-weight:600; cursor:pointer; background:var(--green); color:#fff; }
+  .btn:hover{ background:var(--green-deep); } .btn[disabled]{ opacity:.6; cursor:wait; }
+  .btn.secondary{ background:#fff; color:var(--green); box-shadow:inset 0 0 0 1px #C9D3CC; }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .err{ color:var(--bad); font-size:12px; }
+  .wrap{ overflow-x:auto; }
+  #login{ max-width:360px; margin:60px auto; }
+  #login label{ display:block; font-size:12px; font-weight:600; color:var(--soft); margin:12px 0 4px; }
+  #login input{ width:100%; padding:9px 11px; border:1px solid #C9D3CC; border-radius:9px; font:inherit; }
+  #toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 16px; border-radius:10px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  #toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kantina · Integrations status <small>ERP + CMS + email</small></h1>
+  <div class="row" id="who" hidden><span id="who-name"></span> · <a href="../api/docs/">API docs</a> · <button class="link" type="button" id="logout">Sign out</button></div>
+</header>
+
+<form class="card" id="login" hidden>
+  <h2>Staff sign-in</h2>
+  <p class="muted small" style="margin:0;">Use a store console account (demo: <strong>stall-01</strong> / <strong>kantina123</strong>).</p>
+  <label for="account">Store account</label><input id="account" autocomplete="username" required>
+  <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+  <p class="err" id="login-error" role="alert"></p>
+  <button class="btn" type="submit" style="width:100%;">Sign in</button>
+</form>
+
+<main id="app" hidden>
+  <div class="grid">
+    <div class="card" id="erp-card"></div>
+    <div class="card" id="cms-card"></div>
+    <div class="card">
+      <h2>Catalog sync</h2>
+      <div class="small muted">Last CMS sync: <span id="sync-cms">—</span><br>Last ERP update: <span id="sync-erp">—</span></div>
+      <p class="small muted">Webhooks keep Kantina up to date automatically. Use this after deploying or if something looks out of date.</p>
+      <button class="btn secondary" type="button" id="sync-btn">Sync catalog now</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>
+      <span>ERP outbox <span class="muted small">— sales orders waiting to reach the ERP are retried automatically</span></span>
+      <button class="btn" type="button" id="retry-btn">Retry now</button>
+    </h2>
+    <div class="row" id="outbox-counts" style="margin-bottom:8px;"></div>
+    <div class="wrap"><table id="outbox"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Webhooks received <span class="muted small">HMAC-verified events from the ERP and CMS</span></h2>
+    <div class="wrap"><table id="webhooks"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Emails <span class="muted small">via Brevo (logged only when no API key is set)</span></h2>
+    <div class="wrap"><table id="emails"></table></div>
+  </div>
+  <p class="small muted">Refreshes every 10 seconds · <span id="updated"></span></p>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="../js/api.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var timer;
+
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+  function when(iso) { return iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '—'; }
+  function badge(text, kind) { return '<span class="badge ' + (kind || '') + '">' + escapeHtml(text) + '</span>'; }
+
+  function systemCard(el, s) {
+    el.innerHTML = '<h2>' + escapeHtml(s.name) + ' ' + (s.online ? badge('online', 'ok') : badge('offline', 'bad')) + '</h2>' +
+      '<div class="small muted"><code>' + escapeHtml(s.url) + '</code></div>' +
+      (s.online ? '<p class="small muted">Responded in ' + s.ms + ' ms</p>' : '<p class="err">' + escapeHtml(s.error || 'Not responding') + '</p>');
+  }
+
+  function render(d) {
+    systemCard($('erp-card'), d.erp);
+    systemCard($('cms-card'), d.cms);
+    $('sync-cms').textContent = when(d.last_sync.cms);
+    $('sync-erp').textContent = when(d.last_sync.erp);
+
+    var o = d.outbox;
+    $('outbox-counts').innerHTML = badge(o.pending + ' waiting', o.pending ? 'warn' : 'ok') + ' ' + badge(o.sent + ' delivered', 'ok') + ' ' + badge(o.dead + ' rejected / given up', o.dead ? 'bad' : '');
+    $('outbox').innerHTML = '<tr><th>Message</th><th>Order</th><th>Status</th><th>Attempts</th><th>Details</th><th>Created</th></tr>' +
+      (o.recent.length ? o.recent.map(function (m) {
+        var kind = { sent: 'ok', pending: 'warn', failed: 'warn', dead: 'bad' }[m.status];
+        var detail = m.status === 'failed' ? 'Retry at ' + when(m.next_attempt_at) + '<div class="err">' + escapeHtml(m.last_error || '') + '</div>'
+          : (m.last_error ? '<span class="err">' + escapeHtml(m.last_error) + '</span>' : (m.sent_at ? 'Delivered ' + when(m.sent_at) : ''));
+        return '<tr><td><code>' + escapeHtml(m.event) + '</code></td><td>' + escapeHtml(m.ref) + '</td><td>' + badge(m.status, kind) + '</td><td>' + m.attempts + '</td><td class="small">' + detail + '</td><td class="small muted">' + when(m.created_at) + '</td></tr>';
+      }).join('') : '<tr><td colspan="6" class="muted">No messages yet — place an order.</td></tr>');
+
+    $('webhooks').innerHTML = '<tr><th>From</th><th>Event</th><th>Signature</th><th>Result</th><th>Received</th></tr>' +
+      (d.webhooks.length ? d.webhooks.map(function (w) {
+        return '<tr><td>' + badge(w.source.toUpperCase()) + '</td><td><code>' + escapeHtml(w.event || '—') + '</code></td><td>' + (w.signature_ok ? badge('valid', 'ok') : badge('invalid', 'bad')) + '</td><td>' +
+          badge(w.status, w.status === 'processed' ? 'ok' : (w.status === 'duplicate' ? '' : 'bad')) + (w.error ? '<div class="small muted">' + escapeHtml(w.error) + '</div>' : '') + '</td><td class="small muted">' + when(w.received_at) + '</td></tr>';
+      }).join('') : '<tr><td colspan="5" class="muted">No webhooks yet — change a price in the ERP admin or publish in the CMS admin.</td></tr>');
+
+    $('emails').innerHTML = '<tr><th>Type</th><th>To</th><th>Subject</th><th>Status</th><th>Sent</th></tr>' +
+      (d.notifications.length ? d.notifications.map(function (n) {
+        return '<tr><td>' + escapeHtml(n.kind.replace(/_/g, ' ')) + '</td><td>' + escapeHtml(n.to) + '</td><td>' + escapeHtml(n.subject) + '</td><td>' +
+          badge(n.status, n.status === 'sent' ? 'ok' : (n.status === 'logged' ? '' : 'bad')) + (n.error ? '<div class="small muted">' + escapeHtml(n.error) + '</div>' : '') + '</td><td class="small muted">' + when(n.created_at) + '</td></tr>';
+      }).join('') : '<tr><td colspan="5" class="muted">No emails yet.</td></tr>');
+    $('updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+  }
+
+  function load() {
+    return Api.get('/integrations/status').then(render).catch(function (e) { toast(e.message); });
+  }
+
+  function start() {
+    $('login').hidden = true;
+    $('app').hidden = false;
+    $('who').hidden = false;
+    var u = Auth.user();
+    $('who-name').textContent = u.name;
+    load();
+    clearInterval(timer);
+    timer = setInterval(load, 10000);
+  }
+
+  function busy(btn, label, promise) {
+    var old = btn.textContent; btn.disabled = true; btn.textContent = label;
+    return promise.finally(function () { btn.disabled = false; btn.textContent = old; });
+  }
+
+  $('retry-btn').addEventListener('click', function () {
+    busy(this, 'Retrying…', Api.post('/integrations/outbox/retry').then(function (r) {
+      var sent = r.results.filter(function (x) { return x.status === 'sent'; }).length;
+      toast(r.results.length ? sent + ' of ' + r.results.length + ' delivered' : 'Nothing waiting');
+      return load();
+    }).catch(function (e) { toast(e.message); }));
+  });
+  $('sync-btn').addEventListener('click', function () {
+    busy(this, 'Syncing…', Api.post('/integrations/cms/sync').then(function (r) {
+      toast('Synced ' + r.synced.stalls + ' stalls, ' + r.synced.menu_content + ' menu items, ' + r.synced.erp_products + ' ERP products');
+      return load();
+    }).catch(function (e) { toast(e.message); }));
+  });
+  $('logout').addEventListener('click', function () { Auth.clear(); location.reload(); });
+
+  $('login').addEventListener('submit', function (e) {
+    e.preventDefault();
+    $('login-error').textContent = '';
+    Api.post('/auth/staff/login', { account: $('account').value.trim(), password: $('password').value })
+      .then(function (r) { Auth.save(r.token, r.user); start(); })
+      .catch(function (err) { $('login-error').textContent = err.message; });
+  });
+
+  if (Auth.token() && Auth.isStaff()) start();
+  else $('login').hidden = false;
+})();
+</script>
+</body>
+</html>

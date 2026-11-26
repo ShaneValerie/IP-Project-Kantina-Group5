@@ -99,6 +99,21 @@ Starts Kantina on http://localhost:8000, the ERP on :8001 and the CMS on :8002 u
 
 ---
 
+## Testing
+
+**Automated end-to-end test** (all three apps must be running):
+```bash
+php tests/smoke.php                    # dev.sh ports 8000 / 8001 / 8002
+php tests/smoke.php http://localhost/IP-Project-Kantina-Group5/kantina http://localhost/IP-Project-Kantina-Group5/erp http://localhost/IP-Project-Kantina-Group5/cms
+```
+It checks sign-in and roles, ordering → ERP sales orders and stock, payment, the store console workflow, cancelling (stock comes back), CMS publish → webhook → Kantina, forged webhook signatures, reservations and ERP analytics (43 checks).
+
+**Integrations status page**: `kantina/admin/integrations.html` (sign in with a staff account). It shows ERP/CMS health, the outbox with *Retry now*, received webhooks, emails, and *Sync catalog now*.
+
+**Manual "ERP offline" check**: stop the ERP (or rename `erp/api/index.php`), place an order (it still succeeds), start the ERP again, and press *Retry now*. The sales order appears in the ERP ledger.
+
+---
+
 ## Deployment (school server)
 
 Each app is self-contained, so the cleanest layout is **one subdomain per system**:
