@@ -1,0 +1,11 @@
+# Kantina ERP — never serve configuration, SQL or docs files directly
+Options -Indexes
+<FilesMatch "^(config(\.local|\.sample)?\.php|_.*\.php|.*\.(sql|md|log))$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
