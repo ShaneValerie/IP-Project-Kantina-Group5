@@ -10,7 +10,8 @@
  *
  * API keys and webhook secrets are read from erp/config.local.php and
  * cms/config.local.php when present (otherwise the development defaults).
- * It creates a few test orders and one reservation (cancelled/completed at the end).
+ * It creates a few test orders and one reservation; they end up completed or cancelled,
+ * and the stock it changes in the ERP is put back.
  */
 if (PHP_SAPI !== 'cli') {
     exit("Run from the command line.\n");
@@ -91,7 +92,7 @@ foreach (['Kantina' => "$K/health", 'ERP' => "$E/health", 'CMS' => "$C/health"] 
     [$s, $b, $err] = http('GET', $url);
     check("$name is up", $s === 200 && !empty($b['ok']), $err ?? "HTTP $s");
 }
-[$s] = http('GET', str_replace('/api', '/api/docs/', $K));
+[$s] = http('GET', substr($K, 0, -strlen('/api')) . '/api/docs/');
 check('API docs page loads', $s === 200, "HTTP $s");
 
 // ------------------------------------------------------------------ auth
@@ -184,9 +185,44 @@ check('ERP sales order cancelled', ($so['sales_order']['status'] ?? '') === 'can
 [$s, $p] = http('GET', "$E/products/$sku", null, ['X-Api-Key' => $ERP_KEY]);
 check('ERP stock restored', ($p['product']['stock'] ?? -1) === $stockBefore - 1, ($p['product']['stock'] ?? '?') . ' vs ' . ($stockBefore - 1));
 
-section('Stock checks');
-[$s, $b] = http('POST', "$K/orders", ['items' => [['sku' => $sku, 'qty' => 20], ['sku' => 'LS-LONGSILOG', 'qty' => 20]], 'pickup_date' => $date, 'pickup_time' => $slot, 'payment_method' => 'gcash'], bearer($student));
+section('Stock checks (ERP stock change → webhook → Kantina)');
+$lowSku = 'LS-LONGSILOG';
+[$s, $p] = http('GET', "$E/products/$lowSku", null, ['X-Api-Key' => $ERP_KEY]);
+$originalStock = (int) ($p['product']['stock'] ?? 0);
+[$s] = http('PATCH', "$E/products/$lowSku", ['stock' => 1], ['X-Api-Key' => $ERP_KEY]);
+check('ERP stock set to 1', $s === 200, "HTTP $s");
+[$s, $b] = http('GET', "$K/menu-items/$lowSku");
+check('Kantina received the new stock by webhook', ($b['item']['stock'] ?? null) === 1, 'stock ' . json_encode($b['item']['stock'] ?? null));
+[$s, $b] = http('POST', "$K/orders", ['items' => [['sku' => $lowSku, 'qty' => 2]], 'pickup_date' => $date, 'pickup_time' => $slot, 'payment_method' => 'gcash'], bearer($student));
 check('ordering more than the stock is refused (409 sold_out)', $s === 409 && ($b['error']['code'] ?? '') === 'sold_out', "HTTP $s " . ($b['error']['code'] ?? ''));
+if ($s === 201) {
+    http('POST', "$K/payments/{$b['checkout']['ref']}/confirm", ['result' => 'cancelled'], bearer($student));
+}
+http('PATCH', "$E/products/$lowSku", ['stock' => $originalStock], ['X-Api-Key' => $ERP_KEY]);
+
+section('Payments after cancellations');
+[$s, $b] = http('POST', "$K/orders", ['items' => [['sku' => $sku, 'qty' => 1], ['sku' => 'KK-ICED-COFFEE', 'qty' => 1]], 'pickup_date' => $date, 'pickup_time' => $slot, 'payment_method' => 'gcash'], bearer($student));
+$multi = $b['checkout'] ?? null;
+check('two-stall GCash checkout placed', $s === 201 && count($multi['orders'] ?? []) === 2, "HTTP $s");
+$coffee = null;
+$keep = null;
+foreach ($multi['orders'] ?? [] as $o) {
+    if ($o['stall']['id'] === 'kape-kanto') { $coffee = $o; } else { $keep = $o; }
+}
+[$s] = http('POST', "$K/orders/{$coffee['ref']}/cancel", null, bearer($student));
+check('one order cancelled before paying', $s === 200, "HTTP $s");
+[$s, $b] = http('GET', "$K/checkouts/{$multi['ref']}", null, bearer($student));
+$expected = $keep['subtotal'] + $multi['service_fee'];
+check('amount to pay drops to the remaining order', ($b['checkout']['total'] ?? null) == $expected, json_encode($b['checkout']['total'] ?? null) . " vs $expected");
+[$s, $b] = http('POST', "$K/payments/{$multi['ref']}/confirm", ['result' => 'authorized'], bearer($student));
+check('payment charges only the remaining order', $s === 200 && ($b['checkout']['total'] ?? null) == $expected && ($b['checkout']['payment_status'] ?? '') === 'paid', "HTTP $s");
+[$s, $b] = http('POST', "$K/orders/{$keep['ref']}/cancel", null, bearer($student));
+check('cancelling a paid order flags a refund', $s === 200 && !empty($b['order']['refund_due']), "HTTP $s");
+[$s, $b] = http('POST', "$K/orders", ['items' => [['sku' => $sku, 'qty' => 1]], 'pickup_date' => $date, 'pickup_time' => $slot, 'payment_method' => 'gcash'], bearer($student));
+$solo = $b['checkout']['ref'] ?? null;
+http('POST', "$K/orders/{$b['checkout']['orders'][0]['ref']}/cancel", null, bearer($student));
+[$s, $b] = http('POST', "$K/payments/$solo/confirm", ['result' => 'authorized'], bearer($student));
+check('paying a fully cancelled checkout is refused (409)', $s === 409, "HTTP $s");
 
 // ------------------------------------------------------------------ CMS webhook
 section('CMS publish → webhook → Kantina pulls the new content');
@@ -199,8 +235,8 @@ http('PATCH', "$C/menu-content/$sku", ['description' => $marker], ['X-Api-Key' =
 check('signed CMS webhook accepted', $s === 200, "HTTP $s");
 [$s, $b] = http('GET', "$K/menu-items/$sku");
 check('Kantina shows the new description', ($b['item']['description'] ?? '') === $marker, $b['item']['description'] ?? "HTTP $s");
-[$s] = http('POST', "$K/integrations/cms/webhook", $body, $headers);
-check('same event again is ignored as a duplicate', $s === 200, "HTTP $s");
+[$s, $b] = http('POST', "$K/integrations/cms/webhook", $body, $headers);
+check('same event again is ignored as a duplicate', $s === 200 && ($b['status'] ?? '') === 'duplicate', "HTTP $s " . ($b['status'] ?? ''));
 http('PATCH', "$C/menu-content/$sku", ['description' => $original], ['X-Api-Key' => $CMS_KEY]);
 [$body, $headers] = signed($CMS_SECRET, ['id' => 'evt_smoke_' . bin2hex(random_bytes(6)), 'event' => 'content.published', 'source' => 'cms', 'created_at' => date('c'), 'data' => ['type' => 'menu_item', 'id' => $sku, 'action' => 'updated']]);
 http('POST', "$K/integrations/cms/webhook", $body, $headers);

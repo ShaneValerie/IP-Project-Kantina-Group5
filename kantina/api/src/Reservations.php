@@ -137,7 +137,9 @@ final class Reservations
         $user = $req->user;
 
         $id = Db::tx(function () use ($d, $end, $user) {
-            // Lock the table row: two students booking the same table at once are handled one after the other.
+            // Lock the student first (one booking at a time per student, even for different tables),
+            // then the table (two students booking the same table are handled one after the other).
+            Db::one('SELECT id FROM users WHERE id = ? FOR UPDATE', [$user['id']]);
             $table = Db::one('SELECT * FROM dining_tables WHERE code = ? FOR UPDATE', [strtoupper($d['table'])]);
             if (!$table) {
                 throw new HttpError(404, 'table_not_found', 'That table does not exist.');

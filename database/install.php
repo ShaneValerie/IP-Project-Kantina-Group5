@@ -67,6 +67,8 @@ try {
     $pdo = new PDO("mysql:host=$host;port=$port;charset=utf8mb4", $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     ]);
+    // Import with MySQL 8's strict defaults so the files are known to work on any server.
+    $pdo->exec("SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
 } catch (PDOException $e) {
     fwrite(STDERR, "Could not connect to MySQL: {$e->getMessage()}\n");
     fwrite(STDERR, "Is MySQL running in the XAMPP control panel? Wrong port? Try --port=3307\n");

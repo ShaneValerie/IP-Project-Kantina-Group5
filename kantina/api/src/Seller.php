@@ -109,10 +109,18 @@ final class Seller
         }
 
         if ($to === 'cancelled') {
-            Orders::cancelOrder($order, 'Cancelled by ' . $order['stall_name']);
+            if (!Orders::cancelOrder($order, 'Cancelled by ' . $order['stall_name'], ['pending', 'paid'])) {
+                throw new HttpError(409, 'invalid_transition', "Order #{$order['id']} changed in the meantime — refresh the board.");
+            }
         } else {
             $column = ['paid' => 'paid_at', 'preparing' => 'preparing_at', 'ready' => 'ready_at', 'completed' => 'completed_at'][$to];
-            Db::tx(function () use ($order, $to, $column) {
+            Db::tx(function () use ($order, $from, $to, $column) {
+                // Lock checkout, then order (same order as payments/cancellations), and re-check the status.
+                Db::one('SELECT id FROM checkouts WHERE id = ? FOR UPDATE', [$order['checkout_id']]);
+                $current = Db::value('SELECT status FROM orders WHERE id = ? FOR UPDATE', [$order['id']]);
+                if ($current !== $from) {
+                    throw new HttpError(409, 'invalid_transition', "Order #{$order['id']} changed in the meantime — refresh the board.");
+                }
                 Db::exec("UPDATE orders SET status = ?, $column = NOW(), status_changed_at = NOW() WHERE id = ?", [$to, $order['id']]);
                 if ($to === 'paid') {
                     // Cash received at the counter: record it in the ERP ledger.

@@ -76,10 +76,17 @@ final class Config
         }
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-        $marker = '/' . self::$appName . '/';
-        $pos = strpos($path, $marker);
-        $root = $pos === false ? '' : substr($path, 0, $pos);
+        // Every PHP entry point is one folder below its app (api/index.php, admin/*.php), so
+        // /<root>/<app>/api/index.php -> <root> is the folder that holds kantina/, erp/ and cms/.
+        $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+        if ($script !== '' && substr_count($script, '/') >= 3) {
+            $root = str_replace('\\', '/', dirname(dirname(dirname($script))));
+        } else {
+            $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+            $pos = strpos($path, '/' . self::$appName . '/');
+            $root = $pos === false ? '' : substr($path, 0, $pos);
+        }
+        $root = rtrim($root, '/.');
         return "$scheme://$host$root/$app";
     }
 

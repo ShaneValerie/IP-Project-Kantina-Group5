@@ -315,30 +315,63 @@ final class Orders
         if ($checkout['payment_method'] !== 'gcash') {
             throw new HttpError(409, 'not_online_payment', 'This order is paid at the counter.');
         }
-        if ($checkout['payment_status'] === 'paid') {
-            return ['checkout' => self::formatCheckout($checkout)];
-        }
-        if ($checkout['payment_status'] === 'cancelled') {
-            throw new HttpError(409, 'checkout_cancelled', 'This order was already cancelled. Please order again.');
-        }
+        $id = (int) $checkout['id'];
         if ($d['result'] === 'cancelled') {
-            self::cancelCheckout((int) $checkout['id'], 'Payment was cancelled');
-            return ['checkout' => self::formatCheckout(self::checkoutRow((int) $checkout['id']))];
+            if ($checkout['payment_status'] === 'paid') {
+                throw new HttpError(409, 'already_paid', 'This order is already paid.');
+            }
+            self::cancelCheckout($id, 'Payment was cancelled', ['pending']);
+            return ['checkout' => self::formatCheckout(self::checkoutRow($id))];
         }
+
         $refs = [];
-        Db::tx(function () use ($checkout, &$refs) {
-            Db::exec("UPDATE checkouts SET payment_status = 'paid', paid_at = NOW() WHERE id = ?", [$checkout['id']]);
-            foreach (Db::all("SELECT * FROM orders WHERE checkout_id = ? AND status = 'pending'", [$checkout['id']]) as $o) {
+        // Lock the checkout so a payment and an expiry/cancel can't both win.
+        $outcome = Db::tx(function () use ($id, &$refs) {
+            $c = Db::one('SELECT * FROM checkouts WHERE id = ? FOR UPDATE', [$id]);
+            if ($c['payment_status'] === 'paid') {
+                return 'already_paid';
+            }
+            if ($c['payment_status'] === 'cancelled') {
+                return 'cancelled';
+            }
+            if (strtotime($c['created_at']) < time() - self::UNPAID_EXPIRY_MINUTES * 60) {
+                return 'expired';
+            }
+            $pending = Db::all("SELECT * FROM orders WHERE checkout_id = ? AND status = 'pending' FOR UPDATE", [$id]);
+            if (!$pending) {
+                return 'nothing_to_pay';
+            }
+            // Charge only for the orders that are still going ahead.
+            $subtotal = 0;
+            foreach ($pending as $o) {
                 Db::exec("UPDATE orders SET status = 'paid', paid_at = NOW(), status_changed_at = NOW() WHERE id = ?", [$o['id']]);
                 Outbox::enqueue('erp.sales_order.pay', $o['ref']);
                 $refs[] = $o['ref'];
+                $subtotal += (float) $o['subtotal'];
             }
+            Db::exec(
+                "UPDATE checkouts SET payment_status = 'paid', paid_at = NOW(), subtotal = ?, total = ? + service_fee
+                 WHERE id = ? AND payment_status = 'unpaid'",
+                [$subtotal, $subtotal, $id]
+            );
+            return 'paid';
         });
-        Outbox::process($refs);
-        if (class_exists('Notifier')) {
-            Notifier::orderReceived((int) $checkout['id']);
+
+        switch ($outcome) {
+            case 'expired':
+                self::cancelCheckout($id, 'Payment was not completed within ' . self::UNPAID_EXPIRY_MINUTES . ' minutes', ['pending']);
+                throw new HttpError(409, 'payment_expired', 'The payment window closed after ' . self::UNPAID_EXPIRY_MINUTES . ' minutes, so this order was cancelled and nothing was charged. Please order again.');
+            case 'cancelled':
+            case 'nothing_to_pay':
+                self::cancelCheckout($id, 'Payment was cancelled', ['pending']);
+                throw new HttpError(409, 'checkout_cancelled', 'This order was cancelled, so nothing was charged. Please order again.');
+            case 'paid':
+                Outbox::process($refs);
+                if (class_exists('Notifier')) {
+                    Notifier::orderReceived($id);
+                }
         }
-        return ['checkout' => self::formatCheckout(self::checkoutRow((int) $checkout['id']))];
+        return ['checkout' => self::formatCheckout(self::checkoutRow($id))];
     }
 
     // ===================================================================== cancelling
@@ -350,53 +383,92 @@ final class Orders
                 ? 'This order is already cancelled.'
                 : 'The stall has already started your order, so it can no longer be cancelled.');
         }
-        self::cancelOrder($order, 'Cancelled by you');
+        if (!self::cancelOrder($order, 'Cancelled by you', ['pending', 'paid'])) {
+            throw new HttpError(409, 'cannot_cancel', 'The stall has already started your order, so it can no longer be cancelled.');
+        }
         return ['order' => self::formatDetail(self::own($req, $order['ref']))];
     }
 
-    /** Cancel one order and give its stock back in the ERP. */
-    public static function cancelOrder(array $order, string $reason): void
+    /**
+     * Cancel one order and give its stock back in the ERP.
+     * The order is re-read under a lock: it is only cancelled if its status is
+     * still one of $onlyFrom (default: anything not finished). Returns true if cancelled.
+     */
+    public static function cancelOrder(array $order, string $reason, ?array $onlyFrom = null): bool
     {
-        if (in_array($order['status'], ['completed', 'cancelled'], true)) {
-            return;
-        }
-        Db::tx(function () use ($order, $reason) {
+        $onlyFrom = $onlyFrom ?? ['pending', 'paid', 'preparing', 'ready'];
+        $done = Db::tx(function () use ($order, $reason, $onlyFrom) {
+            // Lock the checkout first, then the order (same order as payment confirmation — no deadlocks).
+            Db::one('SELECT id FROM checkouts WHERE id = ? FOR UPDATE', [$order['checkout_id']]);
+            $fresh = Db::one('SELECT * FROM orders WHERE id = ? FOR UPDATE', [$order['id']]);
+            if (!$fresh || !in_array($fresh['status'], $onlyFrom, true)) {
+                return false;
+            }
+            if ($fresh['paid_at'] !== null) {
+                $reason .= ' · ₱' . number_format((float) $fresh['subtotal'], fmod((float) $fresh['subtotal'], 1.0) ? 2 : 0) . ' to be refunded';
+            }
             Db::exec(
                 "UPDATE orders SET status = 'cancelled', cancel_reason = ?, cancelled_at = NOW(), status_changed_at = NOW() WHERE id = ?",
-                [$reason, $order['id']]
+                [$reason, $fresh['id']]
             );
-            if (Outbox::hasUndelivered($order['ref'], 'erp.sales_order.create')) {
-                // The ERP never got this order — just don't send it.
-                Outbox::drop($order['ref'], 'Order cancelled before it reached the ERP');
-            } elseif ($order['erp_status'] === 'synced' || Db::value("SELECT erp_status FROM orders WHERE id = ?", [$order['id']]) === 'synced') {
-                Outbox::enqueue('erp.sales_order.cancel', $order['ref']);
-            }
-            // If every order in an unpaid checkout is cancelled, the checkout is cancelled too.
-            if (!Db::value("SELECT 1 FROM orders WHERE checkout_id = ? AND status <> 'cancelled' LIMIT 1", [$order['checkout_id']])) {
-                Db::exec("UPDATE checkouts SET payment_status = 'cancelled' WHERE id = ? AND payment_status = 'unpaid'", [$order['checkout_id']]);
-            }
+            // Always tell the ERP. If its "create" is still waiting, the outbox sends create first and
+            // cancel after it; if the ERP never saved the order, cancelling it is answered with 404 = fine.
+            Outbox::enqueue('erp.sales_order.cancel', $fresh['ref']);
+            self::refreshCheckout((int) $fresh['checkout_id']);
+            return true;
         });
-        Outbox::process([$order['ref']]);
+        if ($done) {
+            Outbox::process([$order['ref']]);
+        }
+        return $done;
     }
 
-    public static function cancelCheckout(int $checkoutId, string $reason): void
+    public static function cancelCheckout(int $checkoutId, string $reason, ?array $onlyFrom = null): void
     {
         foreach (Db::all('SELECT * FROM orders WHERE checkout_id = ?', [$checkoutId]) as $order) {
-            self::cancelOrder($order, $reason);
+            self::cancelOrder($order, $reason, $onlyFrom);
         }
-        Db::exec("UPDATE checkouts SET payment_status = 'cancelled' WHERE id = ? AND payment_status = 'unpaid'", [$checkoutId]);
+    }
+
+    /**
+     * Keep an unpaid checkout in line with its orders: the amount to pay covers only
+     * orders still going ahead, and with none left the checkout is cancelled.
+     * (A paid checkout keeps the amount that was charged; cancelled paid orders show a refund.)
+     */
+    private static function refreshCheckout(int $checkoutId): void
+    {
+        $c = Db::one('SELECT * FROM checkouts WHERE id = ? FOR UPDATE', [$checkoutId]);
+        if (!$c || $c['payment_status'] !== 'unpaid') {
+            return;
+        }
+        $live = Db::one("SELECT COUNT(*) AS n, COALESCE(SUM(subtotal), 0) AS subtotal FROM orders WHERE checkout_id = ? AND status <> 'cancelled'", [$checkoutId]);
+        if ((int) $live['n'] === 0) {
+            Db::exec("UPDATE checkouts SET payment_status = 'cancelled' WHERE id = ?", [$checkoutId]);
+        } else {
+            Db::exec('UPDATE checkouts SET subtotal = ?, total = ? + service_fee WHERE id = ?', [$live['subtotal'], $live['subtotal'], $checkoutId]);
+        }
     }
 
     /** Called by the Outbox when the ERP refuses a sales order (e.g. sold out while it was offline). */
     public static function erpRejected(string $ref, string $message): void
     {
-        $order = Db::one('SELECT * FROM orders WHERE ref = ?', [$ref]);
-        if ($order && !in_array($order['status'], ['completed', 'cancelled'], true)) {
+        Db::tx(function () use ($ref, $message) {
+            $checkoutId = Db::value('SELECT checkout_id FROM orders WHERE ref = ?', [$ref]);
+            Db::one('SELECT id FROM checkouts WHERE id = ? FOR UPDATE', [$checkoutId]);
+            $order = Db::one('SELECT * FROM orders WHERE ref = ? FOR UPDATE', [$ref]);
+            if (!$order || in_array($order['status'], ['completed', 'cancelled'], true)) {
+                return;
+            }
+            $reason = 'Not enough stock: ' . str_replace('Kantina ERP: ', '', $message);
+            if ($order['paid_at'] !== null) {
+                $reason .= ' · ₱' . number_format((float) $order['subtotal'], fmod((float) $order['subtotal'], 1.0) ? 2 : 0) . ' to be refunded';
+            }
             Db::exec(
                 "UPDATE orders SET status = 'cancelled', cancel_reason = ?, cancelled_at = NOW(), status_changed_at = NOW() WHERE id = ?",
-                ['Not enough stock: ' . str_replace('Kantina ERP: ', '', $message), $order['id']]
+                [$reason, $order['id']]
             );
-        }
+            self::refreshCheckout((int) $order['checkout_id']);
+        });
     }
 
     /** GCash checkouts left unpaid for 15 minutes are cancelled so their stock and slots free up. */
@@ -407,7 +479,8 @@ final class Orders
             [self::UNPAID_EXPIRY_MINUTES]
         );
         foreach ($stale as $c) {
-            self::cancelCheckout((int) $c['id'], 'Payment was not completed within ' . self::UNPAID_EXPIRY_MINUTES . ' minutes');
+            // Only orders that are still unpaid — never one that was paid a moment ago.
+            self::cancelCheckout((int) $c['id'], 'Payment was not completed within ' . self::UNPAID_EXPIRY_MINUTES . ' minutes', ['pending']);
         }
     }
 
@@ -520,6 +593,7 @@ final class Orders
             'items_text' => self::itemsText($items),
             'payment_method' => $o['payment_method'],
             'placed_at' => iso($o['placed_at']),
+            'refund_due' => $o['status'] === 'cancelled' && $o['paid_at'] !== null,
         ];
     }
 
@@ -642,6 +716,7 @@ final class Orders
                 'status_label' => self::statusLabel($o),
                 'subtotal' => money($o['subtotal']),
                 'cancel_reason' => $o['cancel_reason'],
+                'refund_due' => $o['status'] === 'cancelled' && $o['paid_at'] !== null,
             ], $orders),
             'items' => $flatItems,
         ];
