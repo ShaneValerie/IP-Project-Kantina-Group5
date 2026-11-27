@@ -31,7 +31,7 @@
   </div>
   <div class="flow-head-text">
     <span class="flow-head-meta" id="tracking-ref"></span>
-    <h1 id="tracking-status"></h1>
+    <h1 id="tracking-status">Loading…</h1>
     <p id="tracking-eta"></p>
   </div>
   <ol class="flow-steps" id="tracking-steps" aria-label="Order progress"></ol>
@@ -60,13 +60,15 @@
 
     </div>
 
-    <div class="sticky-footer">
+    <div class="sticky-footer footer-stack">
       <button class="btn btn-primary" type="button" onclick="messageStall()">Message stall</button>
+      <button class="btn btn-secondary" type="button" id="cancel-order-btn" hidden>Cancel order</button>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
 </div>
+<script src="js/api.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

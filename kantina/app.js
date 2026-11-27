@@ -46,20 +46,6 @@ const PICKUP_SLOTS = {
   ]
 };
 
-const ACTIVE_ORDERS = [
-  { ref: 'KTN-90214', stall: "Lola's Silog", detail: 'pickup 11:30', badge: 'Preparing', badgeClass: 'badge-preparing', progress: 2, progressTotal: 4 },
-  { ref: 'KTN-90213', stall: 'Kape Kanto',   detail: 'counter 2',    badge: 'Ready ✓',   badgeClass: 'badge-ready' }
-];
-
-const EARLIER_ORDERS = [
-  { ref: 'KTN-90180', stall: "Lola's Silog", detail: 'Table 12', badge: 'Done', badgeClass: 'badge-completed' }
-];
-
-const HISTORY_ORDERS = [
-  { ref: 'KTN-90180', stall: "Lola's Silog", detail: '₱150', badge: 'Done', badgeClass: 'badge-completed' },
-  { ref: 'KTN-90155', stall: 'Kape Kanto',   detail: '₱60',  badge: 'Done', badgeClass: 'badge-completed' }
-];
-
 const NAV_LINKS = [
   { label: 'Home',    href: 'home.html',   activeOn: ['home'] },
   { label: 'Reserve', href: 'reservations.html', activeOn: ['reserve', 'reservations', 'reservation-confirmed'] },
@@ -171,62 +157,116 @@ function renderReceipt() {
   }
 }
 
-// Friendly headline for each order status
-const STATUS_HEADLINES = {
-  'Order placed':      'We got your order',
-  'Payment confirmed': 'Payment received',
-  'Preparing':         'Your food is cooking',
-  'Ready for pickup':  'Your food is ready!',
-  'Completed':         'Enjoy your meal!'
-};
+// ── Tracking page ──
+// GET /orders/{ref}, refreshed every 5 seconds until the order is completed or cancelled.
+let trackedOrder = null;
 
-function renderTracking() {
-  setText('tracking-ref', '#' + ORDER.ref);
-  setText('tracking-status', STATUS_HEADLINES[ORDER.status] || ORDER.status);
+function renderTrackedOrder(o) {
+  trackedOrder = o;
+  document.title = '#' + o.ref + ' — Kantina';
+  setText('tracking-ref', '#' + o.ref + (o.stall.name ? ' · ' + o.stall.name : ''));
+  setText('tracking-status', o.headline);
+  setText('tracking-eta', o.status === 'cancelled' && o.cancel_reason ? o.cancel_reason : o.eta_text);
+  setText('tracking-counter', o.counter);
   const steps = document.getElementById('tracking-steps');
-  if (steps) {
-    steps.setAttribute('aria-label', `Order progress: step ${ORDER.statusStep} of ${ORDER.statusTotal}`);
-    steps.innerHTML = ORDER.timeline.map(t =>
-      `<li${t.pending ? '' : ' class="done"'}><span>${t.title}</span></li>`
-    ).join('');
-  }
-  setText('tracking-eta', ORDER.statusSub);
-  setText('tracking-counter', ORDER.counter);
-  const progress = document.getElementById('tracking-progress');
-  if (progress) {
-    progress.setAttribute('aria-label', `Order progress: step ${ORDER.statusStep} of ${ORDER.statusTotal}`);
-    progress.innerHTML = Array.from({ length: ORDER.statusTotal }, (_, i) =>
-      `<span${i < ORDER.statusStep ? ' class="filled"' : ''}></span>`
-    ).join('');
-  }
-  const timeline = document.getElementById('tracking-timeline');
-  if (timeline) {
-    const currentIndex = ORDER.timeline.filter(t => !t.pending).length - 1;
-    timeline.innerHTML = ORDER.timeline.map((t, i) => `
-      <div class="timeline-step${t.pending ? ' pending' : ''}${i === currentIndex ? ' current' : ''}">
+  const cancelled = o.status === 'cancelled';
+  steps.setAttribute('aria-label', cancelled ? 'Order cancelled' : `Order progress: step ${o.progress.step} of ${o.progress.total}`);
+  steps.innerHTML = o.timeline.map(t =>
+    `<li${t.done && t.key !== 'cancelled' ? ' class="done"' : ''}><span>${escapeHtml(t.title)}</span></li>`
+  ).join('');
+  document.getElementById('tracking-timeline').innerHTML = o.timeline.map(t => `
+      <div class="timeline-step${t.done ? '' : ' pending'}${t.current ? ' current' : ''}">
         <span class="timeline-dot" aria-hidden="true"></span>
-        <div class="timeline-title">${t.title}</div>
-        ${t.sub ? `<div class="timeline-sub">${t.sub}</div>` : ''}
+        <div class="timeline-title">${escapeHtml(t.title)}</div>
+        ${t.sub ? `<div class="timeline-sub">${escapeHtml(t.sub)}</div>` : ''}
       </div>
     `).join('');
-  }
+  const cancelBtn = document.getElementById('cancel-order-btn');
+  if (cancelBtn) cancelBtn.hidden = !o.can_cancel;
 }
 
+function renderTracking() {
+  const timeline = document.getElementById('tracking-timeline');
+  if (!timeline) return;
+  Auth.requireStudent();
+  const ref = qs('ref');
+  if (!ref) { location.replace('orders.html'); return; }
+
+  const isFinal = o => ['completed', 'cancelled'].includes(o.status);
+  let sent = 0;        // id of the latest request sent
+  let shown = 0;       // id of the request whose answer is on screen
+  let done = false;    // order finished or not found: stop for good
+  const timer = setInterval(() => { if (!document.hidden) load(); }, 5000);
+  function stop() { done = true; clearInterval(timer); }
+
+  function load() {
+    if (done) return Promise.resolve();
+    const id = ++sent;
+    return Api.get('/orders/' + encodeURIComponent(ref))
+      .then(res => {
+        if (done || id < shown) return;          // a newer answer is already on screen
+        shown = id;
+        renderTrackedOrder(res.order);
+        if (isFinal(res.order)) stop();
+      })
+      .catch(err => {
+        if (done || id < shown) return;
+        if (err.status === 404) {
+          stop();
+          setText('tracking-status', 'Order not found');
+          setText('tracking-eta', err.message);
+        } else {
+          showToast(err.message);   // keep polling: the connection may come back
+        }
+      });
+  }
+  load();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+
+  const cancelBtn = document.getElementById('cancel-order-btn');
+  if (cancelBtn) cancelBtn.addEventListener('click', () => {
+    if (!confirm('Cancel this order?')) return;
+    cancelBtn.disabled = true;
+    Api.post('/orders/' + encodeURIComponent(ref) + '/cancel')
+      .then(() => { showToast('Order cancelled'); return load(); })
+      .catch(err => showToast(err.message))
+      .finally(() => { cancelBtn.disabled = false; });
+  });
+}
+
+// ── Orders page ──
+// GET /orders?status=active and ?status=history. Active cards open their tracking page.
+const BADGE_CLASS = {
+  pending: 'badge-preparing', paid: 'badge-preparing', preparing: 'badge-preparing',
+  ready: 'badge-ready', completed: 'badge-completed', cancelled: 'badge-completed'
+};
+
 function renderOrderCard(o, muted) {
-  const prog = o.progress ? `<div class="order-progress" aria-label="Order progress: step ${o.progress} of ${o.progressTotal}">${Array.from({ length: o.progressTotal }, (_, i) => `<span${i < o.progress ? ' class="filled"' : ''}></span>`).join('')}</div>` : '';
-  const rate = muted ? `<button class="link-btn card-link" type="button" onclick="showToast('Would open order rating')">Rate this order →</button>` : '';
-  const top = `<div class="order-card-top"><div><div class="order-card-title">#${o.ref}</div><div class="order-card-sub">${o.stall} · ${o.detail}</div></div><span class="badge ${o.badgeClass}">${o.badge}</span></div>`;
-  // Active orders open their tracking page; finished ones stay as cards with "Rate".
-  if (!muted) return `<a class="order-card" href="tracking.html" style="display:block;color:inherit;">${top}${prog}</a>`;
-  return `<div class="order-card muted">${top}${rate}</div>`;
+  const prog = !muted ? `<div class="order-progress" aria-label="Order progress: step ${o.progress.step} of ${o.progress.total}">${Array.from({ length: o.progress.total }, (_, i) => `<span${i < o.progress.step ? ' class="filled"' : ''}></span>`).join('')}</div>` : '';
+  const badge = o.status === 'ready' ? 'Ready ✓' : o.status_label;
+  const detail = muted
+    ? escapeHtml(o.items_text) + ' · ' + Fmt.peso(o.total) + (o.refund_due ? ' · refund due' : '')
+    : escapeHtml(o.items_text) + ' · pickup ' + escapeHtml(o.pickup_day) + ' ' + Fmt.time12(o.pickup_time);
+  const top = `<div class="order-card-top"><div><div class="order-card-title">#${escapeHtml(o.ref)}</div><div class="order-card-sub">${escapeHtml(o.stall.name)} · ${detail}</div></div><span class="badge ${BADGE_CLASS[o.status] || 'badge-completed'}">${escapeHtml(badge)}</span></div>`;
+  if (!muted) return `<a class="order-card" href="tracking.html?ref=${encodeURIComponent(o.ref)}" style="display:block;color:inherit;">${top}${prog}</a>`;
+  return `<div class="order-card muted">${top}</div>`;
 }
 
 function renderOrders() {
   const active = document.getElementById('active-panel');
   const history = document.getElementById('history-panel');
-  if (active) active.innerHTML = ACTIVE_ORDERS.map(o => renderOrderCard(o, false)).join('') +
-    (EARLIER_ORDERS.length ? `<p class="section-label" id="earlier-heading" style="margin-top:22px;">Earlier today</p>` + EARLIER_ORDERS.map(o => renderOrderCard(o, true)).join('') : '');
-  if (history) history.innerHTML = HISTORY_ORDERS.map(o => renderOrderCard(o, true)).join('');
+  if (!active || !history) return;
+  Auth.requireStudent();
+  const fill = (panel, status, muted, empty) =>
+    Api.get('/orders', { status: status })
+      .then(res => {
+        panel.innerHTML = res.orders.length
+          ? res.orders.map(o => renderOrderCard(o, muted)).join('')
+          : `<p class="load-msg">${empty}</p>`;
+      })
+      .catch(err => { panel.innerHTML = `<p class="load-msg">${escapeHtml(err.message)}</p>`; });
+  fill(active, 'active', false, 'No orders in progress. <a href="home.html">Order something</a>');
+  fill(history, 'history', true, 'No past orders yet.');
 }
 
 // ── Checkout page ──
@@ -293,11 +333,11 @@ function handleCancel() {
 }
 
 // ── Receipt page ──
-function trackOrder() { window.location.href = 'tracking.html'; }
+function trackOrder() { window.location.href = 'orders.html'; }   // #14 passes the real order: tracking.html?ref=…
 function backToHome() { window.location.href = 'home.html'; }
 
 // ── Tracking page ──
-function messageStall() { showToast('Messaging ' + ORDER.stall + ' is coming soon'); }
+function messageStall() { showToast('Messaging ' + ((trackedOrder && trackedOrder.stall.name) || 'the stall') + ' is coming soon'); }
 
 // ── Orders page ──
 const orderTabs = document.getElementById('order-tabs');
