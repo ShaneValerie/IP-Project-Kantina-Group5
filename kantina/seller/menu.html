@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lola's Silog · Menu</title>
+<title>Kantina · Menu</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="page-seller-app page-seller-menu">
@@ -11,7 +11,7 @@
 <div class="app-shell">
 
   <header class="app-topbar">
-    <h1>Menu</h1>
+    <h1 id="page-title">Menu</h1>
     <button class="btn-add" id="add-item-btn">+ Add item</button>
   </header>
 
@@ -28,7 +28,7 @@
       </nav>
       <div class="sidebar-footer">
         <button class="nav-item" data-panel="settings">Settings</button>
-        <a class="nav-item" href="login.html">Sign out</a>
+        <a class="nav-item" href="login.html" id="sign-out">Sign out</a>
       </div>
     </aside>
 
@@ -38,12 +38,15 @@
         <span>Price</span>
         <span>Stock</span>
         <span>Available</span>
+        <span></span>
       </div>
 
       <div class="item-list" id="item-list" aria-live="polite">
-              </div>
+        <p class="list-footnote">Loading menu…</p>
+      </div>
 
       <p class="list-footnote">Toggling off hides the item from students immediately.</p>
+      <p class="list-footnote">Prices and stock are saved to Kantina ERP; names and descriptions to Kantina CMS.</p>
     </main>
 
     <div class="panel-placeholder" id="panel-placeholder" hidden></div>
@@ -58,17 +61,25 @@
     <form id="add-item-form">
       <div class="field">
         <label for="field-name">Item name</label>
-        <input type="text" id="field-name" name="name" required autocomplete="off">
+        <input type="text" id="field-name" name="name" required minlength="2" maxlength="80" autocomplete="off">
       </div>
       <div class="field-row">
         <div class="field">
           <label for="field-price">Price (₱)</label>
-          <input type="number" id="field-price" name="price" min="0" step="1" required>
+          <input type="number" id="field-price" name="price" min="0" max="10000" step="1" required>
         </div>
-        <div class="field">
+        <div class="field" id="stock-field">
           <label for="field-stock">Stock</label>
-          <input type="number" id="field-stock" name="stock" min="0" step="1" required>
+          <input type="number" id="field-stock" name="stock" min="0" max="10000" step="1" required>
         </div>
+      </div>
+      <div class="field">
+        <label for="field-section">Section <span class="optional">(optional)</span></label>
+        <input type="text" id="field-section" name="section" maxlength="60" placeholder="e.g. Silog" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="field-description">Description <span class="optional">(optional)</span></label>
+        <textarea id="field-description" name="description" rows="2" maxlength="2000"></textarea>
       </div>
       <div class="field field-checkbox">
         <input type="checkbox" id="field-available" name="available" checked>
@@ -76,23 +87,63 @@
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-outline" id="modal-cancel">Cancel</button>
-        <button type="submit" class="btn-solid">Save item</button>
+        <button type="submit" class="btn-solid" id="modal-save">Save item</button>
       </div>
     </form>
   </div>
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="../js/api.js"></script>
 <script>
 (function () {
 
-  let items = [
-    { id: 1, name: "Tapsilog",  price: 85, stock: 24, available: true },
-    { id: 2, name: "Longsilog", price: 75, stock: 11, available: true },
-    { id: 3, name: "Bangsilog", price: 90, stock: 0,  available: false },
-  ];
+  const user = Auth.requireStaff();
+
+  let items = [];          // the stall's menu, from GET /seller/menu
+  let editingSku = null;   // null = the modal adds a new item, otherwise the SKU being edited
 
   const itemList = document.getElementById("item-list");
 
+  // ---------- header ----------
+  function showStall(stall) {
+    if (stall) document.title = `${stall.name} · Menu`;
+  }
+  showStall(user.stall);
+
+  document.getElementById("sign-out").addEventListener("click", (e) => {
+    e.preventDefault();
+    Auth.logout();
+  });
+
+  // ---------- toast ----------
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
+  function showToast(message) {
+    toast.textContent = message;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 5000);
+  }
+
+  // ---------- loading ----------
+  async function load() {
+    try {
+      const data = await Api.get("/seller/menu");
+      showStall(data.stall);
+      items = data.items;
+      render();
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  function findItem(sku) {
+    return items.find(i => i.sku === sku);
+  }
+
+  // ---------- rendering ----------
   function render() {
     itemList.innerHTML = "";
 
@@ -108,24 +159,32 @@
   }
 
   function buildRow(item) {
-    const outOfStock = item.stock === 0;
+    // Add-ons don't track stock: the API sends stock = null for them.
+    const outOfStock = item.track_stock && item.stock === 0;
     const isAvailable = item.available && !outOfStock;
 
     const row = document.createElement("div");
     row.className = "item-row" + (isAvailable ? "" : " is-unavailable");
-    row.dataset.id = item.id;
+    row.dataset.sku = item.sku;
+
+    const thumb = item.photo_url
+      ? `<img class="item-thumb" src="${escapeHtml(item.photo_url)}" alt="" loading="lazy">`
+      : `<div class="item-thumb" aria-hidden="true">im</div>`;
 
     row.innerHTML = `
       <div class="item-identity">
-        <div class="item-thumb" aria-hidden="true">im</div>
-        <span class="item-name">${escapeHtml(item.name)}</span>
+        ${thumb}
+        <div class="item-text">
+          <span class="item-name">${escapeHtml(item.name)}</span>
+          <span class="item-section">${escapeHtml(item.section || "")}</span>
+        </div>
       </div>
-      <span class="cell-value">\u20B1${item.price}</span>
-      <span class="cell-value">${item.stock}</span>
+      <span class="cell-value">${Fmt.peso(item.price)}</span>
+      <span class="cell-value">${item.track_stock ? item.stock : "—"}</span>
       <label class="switch">
         <input
           type="checkbox"
-          data-id="${item.id}"
+          data-sku="${escapeHtml(item.sku)}"
           ${isAvailable ? "checked" : ""}
           ${outOfStock ? "disabled" : ""}
           aria-label="Available: ${escapeHtml(item.name)}"
@@ -134,47 +193,84 @@
         <span class="track" aria-hidden="true"></span>
         <span class="thumb" aria-hidden="true"></span>
       </label>
+      <button type="button" class="btn-edit" data-edit="${escapeHtml(item.sku)}">Edit</button>
     `;
 
     return row;
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  itemList.addEventListener("change", (e) => {
-    const checkbox = e.target.closest('input[type="checkbox"][data-id]');
+  // ---------- available toggle ----------
+  itemList.addEventListener("change", async (e) => {
+    const checkbox = e.target.closest('input[type="checkbox"][data-sku]');
     if (!checkbox) return;
 
-    const item = items.find(i => i.id === Number(checkbox.dataset.id));
-    if (!item) return;
-
-    item.available = checkbox.checked;
-    render();
+    const sku = checkbox.dataset.sku;
+    checkbox.disabled = true;
+    try {
+      await Api.patch("/seller/menu/" + encodeURIComponent(sku), { available: checkbox.checked });
+    } catch (err) {
+      showToast(err.message);
+    }
+    load();   // redraw from the server, so the switch always shows what was really saved
   });
 
+  // ---------- add / edit modal ----------
   const backdrop = document.getElementById("modal-backdrop");
   const form = document.getElementById("add-item-form");
   const addBtn = document.getElementById("add-item-btn");
   const cancelBtn = document.getElementById("modal-cancel");
-  const nameField = document.getElementById("field-name");
+  const saveBtn = document.getElementById("modal-save");
+  const modalTitle = document.getElementById("modal-title");
+  const fields = {
+    name: document.getElementById("field-name"),
+    price: document.getElementById("field-price"),
+    stock: document.getElementById("field-stock"),
+    section: document.getElementById("field-section"),
+    description: document.getElementById("field-description"),
+    available: document.getElementById("field-available"),
+  };
+  const stockField = document.getElementById("stock-field");
 
-  function openModal() {
-    backdrop.hidden = false;
+  function openModal(item) {
     form.reset();
-    document.getElementById("field-available").checked = true;
-    nameField.focus();
+    editingSku = item ? item.sku : null;
+    modalTitle.textContent = item ? "Edit item" : "Add item";
+    saveBtn.textContent = item ? "Save changes" : "Save item";
+
+    if (item) {
+      fields.name.value = item.name;
+      fields.price.value = item.price;
+      fields.stock.value = item.track_stock ? item.stock : "";
+      fields.section.value = item.section || "";
+      fields.description.value = item.description || "";
+      fields.available.checked = item.available;
+    } else {
+      fields.available.checked = true;
+    }
+
+    // Add-ons have no stock to edit.
+    const noStock = item && !item.track_stock;
+    stockField.hidden = noStock;
+    fields.stock.required = !noStock;
+
+    backdrop.hidden = false;
+    fields.name.focus();
   }
 
   function closeModal() {
     backdrop.hidden = true;
+    editingSku = null;
   }
 
-  addBtn.addEventListener("click", openModal);
+  addBtn.addEventListener("click", () => openModal(null));
   cancelBtn.addEventListener("click", closeModal);
+
+  itemList.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-edit]");
+    if (!btn) return;
+    const item = findItem(btn.dataset.edit);
+    if (item) openModal(item);
+  });
 
   backdrop.addEventListener("click", (e) => {
     if (e.target === backdrop) closeModal();
@@ -184,33 +280,66 @@
     if (e.key === "Escape" && !backdrop.hidden) closeModal();
   });
 
-  form.addEventListener("submit", (e) => {
+  /** Read the form into the shape the API expects. */
+  function formValues() {
+    return {
+      name: fields.name.value.trim(),
+      price: Math.max(0, parseInt(fields.price.value, 10) || 0),
+      stock: Math.max(0, parseInt(fields.stock.value, 10) || 0),
+      section: fields.section.value.trim(),
+      description: fields.description.value.trim(),
+      available: fields.available.checked,
+    };
+  }
+
+  /** For edits, send only what changed, so an unchanged name doesn't call the CMS. */
+  function changedFields(item, values) {
+    const changes = {};
+    if (values.name !== item.name) changes.name = values.name;
+    if (values.price !== item.price) changes.price = values.price;
+    if (item.track_stock && values.stock !== item.stock) changes.stock = values.stock;
+    if (values.section && values.section !== (item.section || "")) changes.section = values.section;
+    if (values.description !== (item.description || "")) changes.description = values.description;
+    if (values.available !== item.available) changes.available = values.available;
+    return changes;
+  }
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const name = nameField.value.trim();
-    const price = Math.max(0, parseInt(document.getElementById("field-price").value, 10) || 0);
-    const stock = Math.max(0, parseInt(document.getElementById("field-stock").value, 10) || 0);
-    const wantsAvailable = document.getElementById("field-available").checked;
-
-    if (!name) {
-      nameField.focus();
+    const values = formValues();
+    if (values.name.length < 2) {
+      showToast("Enter an item name (at least 2 characters).");
+      fields.name.focus();
       return;
     }
 
-    const nextId = items.reduce((max, i) => Math.max(max, i.id), 0) + 1;
-
-    items.push({
-      id: nextId,
-      name,
-      price,
-      stock,
-      available: stock > 0 ? wantsAvailable : false,
-    });
-
-    closeModal();
-    render();
+    saveBtn.disabled = true;
+    try {
+      if (editingSku) {
+        const item = findItem(editingSku);
+        const changes = changedFields(item, values);
+        if (Object.keys(changes).length) {
+          await Api.patch("/seller/menu/" + encodeURIComponent(editingSku), changes);
+        }
+      } else {
+        const body = { name: values.name, price: values.price, stock: values.stock, available: values.available };
+        if (values.section) body.section = values.section;
+        if (values.description) body.description = values.description;
+        await Api.post("/seller/menu", body);
+      }
+      closeModal();
+    } catch (err) {
+      // 502: the ERP or CMS is down. The message says what was and wasn't saved.
+      showToast(err.message);
+      if (err.status === 502) closeModal();
+    } finally {
+      saveBtn.disabled = false;
+      load();
+    }
   });
 
+  // ---------- sidebar ----------
   const navList = document.getElementById("nav-list");
   const sidebarFooter = document.querySelector(".sidebar-footer");
   const content = document.getElementById("content");
@@ -235,7 +364,7 @@
     });
   });
 
-  render();
+  load();
 
 })();
 </script>

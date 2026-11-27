@@ -641,7 +641,7 @@ button, input, textarea{ font-family:inherit; }
 .page-seller-menu .table-header,
 .page-seller-menu .item-row{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 100px 90px 100px;
+  grid-template-columns:minmax(0,1fr) 100px 90px 100px 64px;
   align-items:center;
   gap:16px;
 }
@@ -687,6 +687,32 @@ button, input, textarea{ font-family:inherit; }
   font-size:0.7rem;
   color:var(--ink-soft);
 }
+
+.page-seller-menu img.item-thumb{ object-fit:cover; display:block; }
+
+.page-seller-menu .item-text{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+
+.page-seller-menu .item-section{
+  font-size:0.82rem;
+  color:var(--seller-muted);
+}
+.page-seller-menu .item-section:empty{ display:none; }
+
+.page-seller-menu .btn-edit{
+  border:none;
+  border-radius:var(--seller-radius-btn);
+  background:var(--green-tint);
+  color:var(--green);
+  font-size:0.88rem;
+  font-weight:600;
+  padding:8px 12px;
+  cursor:pointer;
+}
+.page-seller-menu .btn-edit:hover{ background:var(--green-soft); }
 
 .page-seller-menu .item-name{
   font-weight:700;
@@ -800,7 +826,8 @@ button, input, textarea{ font-family:inherit; }
 }
 
 .page-seller-menu .modal .field input[type="text"],
-.page-seller-menu .modal .field input[type="number"]{
+.page-seller-menu .modal .field input[type="number"],
+.page-seller-menu .modal .field textarea{
   width:100%;
   border:none;
   background:var(--seller-paper);
@@ -813,10 +840,15 @@ button, input, textarea{ font-family:inherit; }
 }
 
 .page-seller-menu .modal .field input[type="text"]:focus,
-.page-seller-menu .modal .field input[type="number"]:focus{
+.page-seller-menu .modal .field input[type="number"]:focus,
+.page-seller-menu .modal .field textarea:focus{
   background:var(--white);
   box-shadow:var(--focus-ring), var(--shadow-sm);
 }
+
+.page-seller-menu .modal .field textarea{ resize:vertical; font-family:inherit; }
+.page-seller-menu .modal .field[hidden]{ display:none; }
+.page-seller-menu .modal .optional{ font-weight:400; color:var(--seller-muted); }
 
 .page-seller-menu .modal .field-row{ display:flex; gap:12px; }
 .page-seller-menu .modal .field-row .field{ flex:1; min-width:0; }
@@ -854,7 +886,7 @@ button, input, textarea{ font-family:inherit; }
 
 @media (max-width:960px){
   .page-seller-menu .table-header,
-  .page-seller-menu .item-row{ grid-template-columns:minmax(0,1fr) 80px 70px 70px; gap:10px; }
+  .page-seller-menu .item-row{ grid-template-columns:minmax(0,1fr) 80px 70px 70px 56px; gap:10px; }
 }
 
 /* Phone: each item becomes a compact card */
@@ -865,7 +897,7 @@ button, input, textarea{ font-family:inherit; }
     grid-template-columns:auto auto 1fr auto;
     grid-template-areas:
       "id    id    id    switch"
-      "price stock .     switch";
+      "price stock edit  switch";
     row-gap:8px;
     column-gap:16px;
     padding:14px 16px;
@@ -875,6 +907,7 @@ button, input, textarea{ font-family:inherit; }
   .page-seller-menu .item-row > :nth-child(2){ grid-area:price; }
   .page-seller-menu .item-row > :nth-child(3){ grid-area:stock; }
   .page-seller-menu .item-row > :nth-child(4){ grid-area:switch; justify-self:end; }
+  .page-seller-menu .item-row > :nth-child(5){ grid-area:edit; justify-self:end; }
 
   .page-seller-menu .item-row > :nth-child(2),
   .page-seller-menu .item-row > :nth-child(3){
