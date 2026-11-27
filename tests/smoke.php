@@ -1,15 +1,15 @@
 <?php
 /**
- * End-to-end smoke test for Kantina + ERP + CMS (runs against live servers).
+ * End-to-end smoke test for Kantina + ERP + CRM (runs against live servers).
  *
  *   php tests/smoke.php                                   # dev.sh defaults (ports 8000/8001/8002)
  *   php tests/smoke.php http://localhost/IP-Project-Kantina-Group5/kantina \
  *                       http://localhost/IP-Project-Kantina-Group5/erp \
- *                       http://localhost/IP-Project-Kantina-Group5/cms
- *   php tests/smoke.php https://kantina.<domain> https://kantina-erp.<domain> https://kantina-cms.<domain>
+ *                       http://localhost/IP-Project-Kantina-Group5/crm
+ *   php tests/smoke.php https://kantina.<domain> https://kantina-erp.<domain> https://kantina-crm.<domain>
  *
  * API keys and webhook secrets are read from erp/config.local.php and
- * cms/config.local.php when present (otherwise the development defaults).
+ * crm/config.local.php when present (otherwise the development defaults).
  * It creates a few test orders and one reservation; they end up completed or cancelled,
  * and the stock it changes in the ERP is put back.
  */
@@ -27,10 +27,10 @@ $cfg = function (string $app) use ($root): array {
     return is_file($local) ? array_replace_recursive($base, require $local) : $base;
 };
 $erpCfg = $cfg('erp');
-$cmsCfg = $cfg('cms');
+$crmCfg = $cfg('crm');
 $ERP_KEY = $erpCfg['api_keys']['kantina'];
-$CMS_KEY = $cmsCfg['api_keys']['kantina'];
-$CMS_SECRET = $cmsCfg['webhook_secret'];
+$ERP_SECRET = $erpCfg['webhook_secret'];
+$CRM_KEY = $crmCfg['api_keys']['kantina'];
 
 $passed = 0;
 $failed = 0;
@@ -84,11 +84,11 @@ function signed(string $secret, array $payload): array
     return [$body, ['X-Kantina-Signature' => "t=$t,v1=" . hash_hmac('sha256', "$t.$body", $secret)]];
 }
 
-echo "Kantina smoke test\n  Kantina $K\n  ERP     $E\n  CMS     $C\n";
+echo "Kantina smoke test\n  Kantina $K\n  ERP     $E\n  CRM     $C\n";
 
 // ------------------------------------------------------------------ health
 section('Health');
-foreach (['Kantina' => "$K/health", 'ERP' => "$E/health", 'CMS' => "$C/health"] as $name => $url) {
+foreach (['Kantina' => "$K/health", 'ERP' => "$E/health", 'CRM' => "$C/health"] as $name => $url) {
     [$s, $b, $err] = http('GET', $url);
     check("$name is up", $s === 200 && !empty($b['ok']), $err ?? "HTTP $s");
 }
@@ -118,7 +118,7 @@ if (!$student || !$staff1 || !$staff2 || !$student2) {
 }
 
 // ------------------------------------------------------------------ catalog
-section('Catalog (CMS content + ERP prices)');
+section('Catalog (Kantina content + ERP prices)');
 [$s, $b] = http('GET', "$K/stalls");
 check('stalls listed', $s === 200 && count($b['stalls'] ?? []) >= 4, "HTTP $s");
 [$s, $menu] = http('GET', "$K/stalls/lolas-silog/menu");
@@ -224,22 +224,28 @@ http('POST', "$K/orders/{$b['checkout']['orders'][0]['ref']}/cancel", null, bear
 [$s, $b] = http('POST', "$K/payments/$solo/confirm", ['result' => 'authorized'], bearer($student));
 check('paying a fully cancelled checkout is refused (409)', $s === 409, "HTTP $s");
 
-// ------------------------------------------------------------------ CMS webhook
-section('CMS publish → webhook → Kantina pulls the new content');
-[$s, $entry] = http('GET', "$C/menu-content/$sku", null, ['X-Api-Key' => $CMS_KEY]);
-$original = $entry['entry']['description'] ?? '';
-$marker = 'Smoke test ' . date('H:i:s');
-http('PATCH', "$C/menu-content/$sku", ['description' => $marker], ['X-Api-Key' => $CMS_KEY]);
-[$body, $headers] = signed($CMS_SECRET, ['id' => 'evt_smoke_' . bin2hex(random_bytes(6)), 'event' => 'content.published', 'source' => 'cms', 'created_at' => date('c'), 'data' => ['type' => 'menu_item', 'id' => $sku, 'action' => 'updated']]);
-[$s] = http('POST', "$K/integrations/cms/webhook", $body, $headers);
-check('signed CMS webhook accepted', $s === 200, "HTTP $s");
+// ------------------------------------------------------------------ menu editing
+section('Store console menu editing (content → Kantina, price → ERP)');
 [$s, $b] = http('GET', "$K/menu-items/$sku");
-check('Kantina shows the new description', ($b['item']['description'] ?? '') === $marker, $b['item']['description'] ?? "HTTP $s");
-[$s, $b] = http('POST', "$K/integrations/cms/webhook", $body, $headers);
+$original = $b['item'] ?? [];
+$marker = 'Smoke test ' . date('H:i:s');
+[$s, $b] = http('PATCH', "$K/seller/menu/$sku", ['description' => $marker, 'price' => $original['price'] + 1], bearer($staff1));
+check('staff can edit their own menu item', $s === 200, "HTTP $s");
+[$s, $b] = http('GET', "$K/menu-items/$sku");
+check('students see the new description', ($b['item']['description'] ?? '') === $marker, $b['item']['description'] ?? "HTTP $s");
+[$s, $p] = http('GET', "$E/products/$sku", null, ['X-Api-Key' => $ERP_KEY]);
+check('the new price is saved in the ERP', ($p['product']['price'] ?? null) == $original['price'] + 1, json_encode($p['product']['price'] ?? null));
+[$s] = http('PATCH', "$K/seller/menu/$sku", ['description' => 'not mine'], bearer($staff2));
+check("another stall can't edit the item (404)", $s === 404, "HTTP $s");
+http('PATCH', "$K/seller/menu/$sku", ['description' => $original['description'], 'price' => $original['price']], bearer($staff1));
+
+section('ERP webhooks: signatures and duplicates');
+[$s, $p] = http('GET', "$E/products/$sku", null, ['X-Api-Key' => $ERP_KEY]);
+[$body, $headers] = signed($ERP_SECRET, ['id' => 'evt_smoke_' . bin2hex(random_bytes(6)), 'event' => 'product.updated', 'source' => 'erp', 'created_at' => date('c'), 'data' => ['product' => $p['product'] ?? []]]);
+[$s] = http('POST', "$K/integrations/erp/webhook", $body, $headers);
+check('signed ERP webhook accepted', $s === 200, "HTTP $s");
+[$s, $b] = http('POST', "$K/integrations/erp/webhook", $body, $headers);
 check('same event again is ignored as a duplicate', $s === 200 && ($b['status'] ?? '') === 'duplicate', "HTTP $s " . ($b['status'] ?? ''));
-http('PATCH', "$C/menu-content/$sku", ['description' => $original], ['X-Api-Key' => $CMS_KEY]);
-[$body, $headers] = signed($CMS_SECRET, ['id' => 'evt_smoke_' . bin2hex(random_bytes(6)), 'event' => 'content.published', 'source' => 'cms', 'created_at' => date('c'), 'data' => ['type' => 'menu_item', 'id' => $sku, 'action' => 'updated']]);
-http('POST', "$K/integrations/cms/webhook", $body, $headers);
 [$s] = http('POST', "$K/integrations/erp/webhook", '{"id":"evt_fake","event":"product.updated","data":{}}', ['X-Kantina-Signature' => 't=' . time() . ',v1=' . str_repeat('0', 64)]);
 check('webhook with a forged signature is rejected (401)', $s === 401, "HTTP $s");
 
@@ -274,7 +280,10 @@ section('Analytics & integration status');
 check('analytics come from the ERP', $s === 200 && ($b['source'] ?? '') === 'erp' && ($b['orders'] ?? 0) > 0, "HTTP $s");
 [$s, $b] = http('GET', "$K/integrations/status", null, bearer($staff1));
 check('status page sees the ERP online', !empty($b['erp']['online']), $b['erp']['error'] ?? "HTTP $s");
-check('status page sees the CMS online', !empty($b['cms']['online']), $b['cms']['error'] ?? "HTTP $s");
+[$s] = http('GET', "$C/whoami");
+check('CRM rejects calls without API key (401)', $s === 401, "HTTP $s");
+[$s, $b] = http('GET', "$C/whoami", null, ['X-Api-Key' => $CRM_KEY]);
+check('CRM accepts Kantina\'s API key', $s === 200 && ($b['client'] ?? '') === 'kantina', "HTTP $s");
 
 echo "\n" . ($failed ? "\033[31m$failed failed\033[0m, " : '') . "\033[32m$passed passed\033[0m\n";
 exit($failed ? 1 : 0);

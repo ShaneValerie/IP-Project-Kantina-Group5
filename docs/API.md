@@ -6,7 +6,7 @@ Three REST APIs, all JSON over HTTP:
 |---|---|---|
 | **Kantina API** (used by the student app and store console) | `http://localhost/IP-Project-Kantina-Group5/kantina/api` | Bearer token (JWT) from `/auth/login` |
 | **Kantina ERP API** | `…/erp/api/v1` | `X-Api-Key` header |
-| **Kantina CMS API** | `…/cms/api/v1` | `X-Api-Key` header |
+| **Kantina CRM API** | `…/crm/api/v1` | `X-Api-Key` header |
 
 With `./dev.sh` the bases are `http://localhost:8000/api`, `http://localhost:8001/api/v1` and `http://localhost:8002/api/v1`.
 
@@ -27,9 +27,9 @@ From the browser, always go through `js/api.js` (`Api.get('/stalls')`). It adds 
 | GET | `/auth/me` | The signed-in user | Yes |
 | GET | `/stalls` | Stalls with open/closed status (filter `?category=`) | No |
 | GET | `/stalls/{id}` | One stall | No |
-| GET | `/stalls/{id}/menu` | A stall's menu grouped by section (CMS content + ERP price/stock) | No |
+| GET | `/stalls/{id}/menu` | A stall's menu grouped by section (Kantina content + ERP price/stock) | No |
 | GET | `/menu-items/{sku}` | One menu item with its add-ons | No |
-| GET | `/announcements` | Home page announcements from the CMS | No |
+| GET | `/announcements` | Home page announcements | No |
 | GET | `/pickup-slots` | Pickup times for a date and the stalls in the tray | No |
 | POST | `/orders` | Check out the tray (one order per stall, synced to the ERP) | Student |
 | GET | `/orders` | My orders (`?status=active` or `history`) | Student |
@@ -49,16 +49,15 @@ From the browser, always go through `js/api.js` (`Api.get('/stalls')`). It adds 
 | GET | `/seller/orders` | Orders board for the staff member's stall | Staff |
 | PATCH | `/seller/orders/{id}/status` | Move an order: paid → preparing → ready → completed (or cancelled) | Staff |
 | GET | `/seller/menu` | The stall's menu with price and stock | Staff |
-| POST | `/seller/menu` | Add an item (created in the ERP and the CMS) | Staff |
-| PATCH | `/seller/menu/{sku}` | Edit price/stock/availability (ERP) or name/description (CMS) | Staff |
+| POST | `/seller/menu` | Add an item (created in the ERP, described in Kantina) | Staff |
+| PATCH | `/seller/menu/{sku}` | Edit price/stock/availability (ERP) or name/description/section (Kantina) | Staff |
 | GET | `/seller/tables` | Floor map and schedule for a day | Staff |
 | POST / DELETE | `/seller/tables/{code}/block` | Block / unblock a table slot | Staff |
 | GET | `/seller/analytics` | Revenue, orders, top items, peak hours from the ERP (`?range=7` or `30`) | Staff |
 | POST | `/integrations/erp/webhook` | Receives ERP events (HMAC-signed) | Signature |
-| POST | `/integrations/cms/webhook` | Receives CMS events (HMAC-signed) | Signature |
-| POST | `/integrations/cms/sync` | Full catalog sync from the CMS and ERP | Staff |
+| POST | `/integrations/erp/sync` | Re-read every price and stock level from the ERP | Staff |
 | POST | `/integrations/outbox/retry` | Retry ERP messages that are waiting | Staff |
-| GET | `/integrations/status` | ERP/CMS health, outbox, webhook and email logs | Staff |
+| GET | `/integrations/status` | ERP health, outbox, webhook and email logs | Staff |
 
 ### Kantina ERP API (`/api/v1`, header `X-Api-Key`)
 
@@ -81,19 +80,14 @@ From the browser, always go through `js/api.js` (`Api.get('/stalls')`). It adds 
 
 Webhooks sent to Kantina: `product.updated`, `stock.low`, `stock.depleted`.
 
-### Kantina CMS API (`/api/v1`, header `X-Api-Key`)
+### Kantina CRM API (`/api/v1`, header `X-Api-Key`)
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/health` | Health check (no key needed) |
-| GET | `/content` | All stalls, menu content and announcements in one call |
-| GET | `/stalls`, `/stalls/{id}` | Stall profiles, hours, photos |
-| GET | `/menu-content`, `/menu-content/{sku}` | Menu names, descriptions, photos, sections, add-ons |
-| POST | `/menu-content` | Create menu content (used when staff add an item) |
-| PATCH | `/menu-content/{sku}` | Update menu content |
-| GET | `/announcements` | Live announcements |
+| GET | `/whoami` | Checks the API key and returns the calling client |
 
-Webhook sent to Kantina: `content.published` (`{type: stall | menu_item | announcement, id, action}`).
+The customer, loyalty and feedback endpoints are being added (see the CRM issues on GitHub). List them here as they are built, together with the webhooks the CRM sends to Kantina (`POST /api/integrations/crm/webhook`).
 
 ---
 
@@ -103,7 +97,7 @@ Webhook sent to Kantina: `content.published` (`{type: stall | menu_item | announ
 ```json
 { "error": { "code": "sold_out", "message": "Bangsilog is sold out today.", "fields": { "sku": "LS-BANGSILOG" } } }
 ```
-`message` is written for the user, so show it in a toast. Common statuses: `401` not signed in, `403` wrong role, `404` not found, `409` conflict (sold out, slot full, table taken, wrong order step), `422` invalid input (`fields` says which), `502` the ERP or CMS is not responding.
+`message` is written for the user, so show it in a toast. Common statuses: `401` not signed in, `403` wrong role, `404` not found, `409` conflict (sold out, slot full, table taken, wrong order step), `422` invalid input (`fields` says which), `502` the ERP is not responding.
 
 **Money** is a number in pesos (`85`, `99.5`). **Times** are `"HH:MM"` 24-hour (`"13:00"`); `label` fields hold display text. **Dates** are `"YYYY-MM-DD"` and timestamps are ISO-8601 with `+08:00`.
 
@@ -143,15 +137,15 @@ Wrong password → `401 invalid_credentials`. Five wrong tries → `429 too_many
 ```json
 { "stalls": [
     { "id": "lolas-silog", "name": "Lola's Silog", "category": "Rice meals", "description": "…",
-      "photo_url": "http://…/cms/media/stalls/lolas-silog.jpg", "counter": "Counter 2", "prep_minutes": 10,
+      "photo_url": "http://…/kantina/assets/img/stalls/lolas-silog.jpg", "counter": "Counter 2", "prep_minutes": 10,
       "opens_at": "07:00", "closes_at": "18:00",
       "is_open": true, "accepts_orders": true, "temporarily_closed": false, "status_text": "Open" } ],
   "open_count": 2,
   "categories": ["Rice meals", "Drinks", "Noodles", "Snacks"] }
 ```
 - `is_open`: open right now.
-- `accepts_orders`: students can order or pre-order, which also works outside opening hours for a later pickup slot. Only a stall the CMS marks as *temporarily closed* has `accepts_orders: false`, so that's the one card to grey out.
-- `status_text`: `"Open"`, `"Closed until 2 PM"`, `"Opens tomorrow 7 AM"`, or the CMS's closed note.
+- `accepts_orders`: students can order or pre-order, which also works outside opening hours for a later pickup slot. Only a stall marked *temporarily closed* has `accepts_orders: false`, so that's the one card to grey out.
+- `status_text`: `"Open"`, `"Closed until 2 PM"`, `"Opens tomorrow 7 AM"`, or the stall's closed note.
 
 ### `GET /stalls/{id}/menu`
 ```json
@@ -159,7 +153,7 @@ Wrong password → `401 invalid_credentials`. Five wrong tries → `429 too_many
   "sections": [
     { "name": "Silog", "items": [
         { "sku": "LS-TAPSILOG", "name": "Tapsilog", "description": "Marinated beef tapa, …", "type": "menu", "section": "Silog",
-          "price": 85, "photo_url": "http://…/cms/media/food/tapsilog.jpg",
+          "price": 85, "photo_url": "http://…/kantina/assets/img/food/tapsilog.jpg",
           "available": true, "sold_out": false, "stock": 23, "low_stock": false },
         { "sku": "LS-BANGSILOG", "name": "Bangsilog", "price": 90, "available": false, "sold_out": true, … } ] },
     { "name": "Ulam", "items": [ … ] },
@@ -344,7 +338,7 @@ Wrong order of steps → `409 invalid_transition`. Accepting an unpaid GCash ord
 The SKU is generated by the ERP (e.g. `LS-BISTEK-WITH-RICE`).
 ### `PATCH /seller/menu/{sku}`
 Any of `{ "price": 99, "stock": 12, "available": false, "name": "…", "description": "…", "section": "…" }` → `{ "item": … }`.
-If the ERP or CMS is offline → `502` with a message saying what was and wasn't saved.
+If the ERP is offline and the edit includes a price, stock, availability or name → `502`, and nothing is saved.
 
 ### `GET /seller/tables?date=2026-11-28`
 ```json

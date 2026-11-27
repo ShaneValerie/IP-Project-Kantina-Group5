@@ -8,7 +8,7 @@ It is built as **three separate systems** that integrate over REST APIs and webh
 
 - **Kantina**: the student app, the store console and the main REST API
 - **Kantina ERP**: inventory, prices and the sales ledger (Enterprise Resource Planning)
-- **Kantina CMS**: stalls, menu content, photos and announcements (Content Management System)
+- **Kantina CRM**: customer records, order history, loyalty points and feedback tickets (Customer Relationship Management)
 
 Each system has its own database and its own admin users, and can run on its own server.
 
@@ -21,7 +21,7 @@ flowchart LR
   subgraph Users
     S[Students<br/>phone / laptop browser]
     T[Stall staff<br/>store console]
-    A[Canteen admin<br/>ERP + CMS admin pages]
+    A[Canteen admin<br/>ERP + CRM admin pages]
   end
 
   subgraph School server: PHP + MySQL
@@ -35,11 +35,10 @@ flowchart LR
       EADM[ERP admin pages]
       EDB[(MySQL<br/>kantina_erp)]
     end
-    subgraph C[Kantina CMS — kantina-cms.*]
-      CAPI[CMS REST API · PHP]
-      CADM[CMS admin pages]
-      CMED[/media photos/]
-      CDB[(MySQL<br/>kantina_cms)]
+    subgraph C[Kantina CRM — kantina-crm.*]
+      CAPI[CRM REST API · PHP]
+      CADM[CRM admin pages]
+      CDB[(MySQL<br/>kantina_crm)]
     end
   end
 
@@ -51,8 +50,8 @@ flowchart LR
   API --- KDB
   API -- "REST + X-Api-Key<br/>sales orders, products, reports" --> EAPI
   EAPI -. "webhooks, HMAC signed<br/>product.updated · stock.low · stock.depleted" .-> API
-  API -- "REST + X-Api-Key<br/>stalls, menu content, announcements" --> CAPI
-  CAPI -. "webhook, HMAC signed<br/>content.published" .-> API
+  API -- "REST + X-Api-Key<br/>completed orders, feedback tickets" --> CAPI
+  CAPI -. "webhooks, HMAC signed<br/>customer.updated · ticket.updated" .-> API
   API -- "HTTPS + api-key<br/>receipts, order ready, reservations" --> BREVO
   A --> EADM
   A --> CADM
@@ -60,7 +59,6 @@ flowchart LR
   EADM --- EDB
   CAPI --- CDB
   CADM --- CDB
-  FE -. "photos" .-> CMED
 ```
 
 ### Who owns which data
@@ -71,13 +69,13 @@ flowchart LR
 | Orders, order status, pickup slots | Kantina | ERP receives each order as a **sales order** |
 | Tables, reservations, blocks | Kantina | — |
 | Payments (demo GCash / counter) | Kantina | ERP receives *pay* / *cancel* |
-| Price, stock, availability, SKU | **ERP** | Kantina caches them, updated by ERP webhooks |
+| Stall profiles, hours, photos, menu names, descriptions, sections, add-ons, announcements | Kantina | edited in the store console |
+| Price, stock, availability, SKU | **ERP** | Kantina keeps a copy, updated by ERP webhooks |
 | Sales ledger, revenue, top items | **ERP** | Kantina's seller analytics call ERP reports |
-| Stall profiles, hours, counters, photos | **CMS** | Kantina caches them, updated by CMS webhooks |
-| Menu names, descriptions, sections, add-ons | **CMS** | same |
-| Announcements | **CMS** | same |
+| Customer records, purchase history, loyalty points and tier | **CRM** | Kantina sends each completed order; points/tier come back in the response and by CRM webhooks |
+| Feedback and support tickets | **CRM** | Kantina sends each feedback message; replies come back by CRM webhook |
 
-The **SKU** (e.g. `LS-TAPSILOG`) links a CMS menu entry to its ERP product.
+The **SKU** (e.g. `LS-TAPSILOG`) links a Kantina menu item to its ERP product. The **Kantina user id** links a student to their CRM customer record.
 
 ---
 
@@ -121,35 +119,42 @@ sequenceDiagram
 1. The canteen manager restocks or changes a price in the ERP admin. Or stock hits zero because of sales.
 2. The ERP saves the change, then POSTs a signed webhook to `kantina/api/integrations/erp/webhook`:
    `product.updated`, `stock.low` or `stock.depleted`, with the full product.
-3. Kantina verifies the HMAC signature, ignores duplicates (event id), and updates its cached price/stock.
+3. Kantina verifies the HMAC signature, ignores duplicates (event id), and updates its copy of the price/stock.
 4. Students immediately see the new price or "Sold out today". Failed deliveries can be resent from the ERP admin.
 
-### 2.3 Content publishing (CMS → Kantina, thin webhook + pull)
+### 2.3 Customers and loyalty (Kantina → CRM, outbox + webhooks)
+
+*Being built in #53 (CRM app) and #54 (Kantina side).*
 
 ```mermaid
 sequenceDiagram
-  participant A as Canteen admin
-  participant C as CMS
+  participant T as Stall staff
   participant K as Kantina API
-  A->>C: edit Tapsilog description → Save & publish
-  C->>K: POST /integrations/cms/webhook {event: content.published, data: {type: menu_item, id: LS-TAPSILOG}} + signature
-  K->>K: verify signature, de-duplicate
-  K->>C: GET /api/v1/menu-content/LS-TAPSILOG (X-Api-Key)
-  C-->>K: latest content
-  K->>K: update cached menu item
-  K-->>C: 200 processed
+  participant C as CRM API
+  participant A as Canteen admin
+  T->>K: PATCH /seller/orders/{id}/status {completed}
+  K->>K: BEGIN — order completed + outbox crm.order.completed — COMMIT
+  K->>C: POST /api/v1/orders {customer, order_ref, amount} (X-Api-Key)
+  C->>C: upsert customer, record the order once (by order_ref), add points, recompute tier
+  C-->>K: 200 {customer: {points, tier}}
+  K->>K: save points and tier on the student's profile
+  A->>C: adjust points / reply to a ticket in the CRM admin
+  C->>K: POST /integrations/crm/webhook {customer.updated or ticket.updated} + signature
+  K->>K: verify signature, de-duplicate, update the profile / feedback
 ```
 
-The webhook only says *what* changed, and Kantina fetches the current version, so stale content can never arrive late.
-A full resync is available: `POST /integrations/cms/sync`.
+- **Loyalty**: 1 point per ₱10 spent; Bronze below 100 points, Silver 100–299, Gold 300+.
+- **Feedback**: `POST /feedback` saves the message in Kantina and sends `crm.ticket.create` through the outbox. The CRM creates a ticket (idempotent by Kantina's feedback id), and the admin's reply comes back as `ticket.updated`.
+- The outbox means completed orders and feedback are never lost while the CRM is offline.
 
-### 2.4 Store console menu edits (Kantina → ERP + CMS)
+### 2.4 Store console menu edits (Kantina → ERP)
 
 `PATCH /seller/menu/{sku}` splits the change:
 - price, stock and availability go to `PATCH erp/api/v1/products/{sku}`
-- name, description and section go to `PATCH cms/api/v1/menu-content/{sku}`
+- name, description and section are saved in Kantina
 
-New items (`POST /seller/menu`) are created in the ERP first (it generates the SKU) and then in the CMS.
+New items (`POST /seller/menu`) are created in the ERP first (it generates the SKU) and then described in Kantina.
+Products added directly in the ERP admin reach Kantina through the `product.updated` webhook and are listed under their ERP name.
 
 ### 2.5 Sales analytics (Kantina → ERP reports)
 
@@ -174,13 +179,12 @@ Every email is stored in the `notifications` table. Without an API key, the emai
 | Errors | One JSON error format `{error: {code, message, fields}}` with proper HTTP status codes |
 | Logging | Every request is logged (`request_log`: method, path, status, user, time taken) |
 | Brute force | 5 wrong passwords lock that login for 10 minutes (`429`) |
-| System-to-system auth | `X-Api-Key` header on ERP/CMS APIs |
+| System-to-system auth | `X-Api-Key` header on ERP/CRM APIs |
 | Webhook security | HMAC-SHA256 signature with timestamp (`X-Kantina-Signature`), 5-minute replay window |
-| Reliability | Transactional outbox with retries and backoff; idempotent ERP endpoints; webhook de-duplication |
+| Reliability | Transactional outbox with retries and backoff; idempotent ERP/CRM endpoints; webhook de-duplication |
 | Consistency | Database transactions; row locks for table bookings and stock changes |
 | Passwords | `password_hash` / `password_verify` (bcrypt) |
 | Admin pages | PHP sessions, CSRF tokens on every form, output escaping |
-| Uploads | CMS accepts images only (checked with `getimagesize`), random file names, scripts blocked in `media/` |
 
 ---
 
@@ -191,10 +195,10 @@ Every email is stored in the `notifications` table. Without an API key, the emai
 | Frontend | **HTML5, CSS3, vanilla JavaScript** (`fetch`, `localStorage`) | Lightweight pages that load fast on phones; no build step, so every member can edit them |
 | Frontend ↔ API | **REST + JSON**, `js/api.js` helper | One place for the base URL, tokens, errors and the cart |
 | Backend / API | **PHP 8** (no framework): front controller, router, middleware | Runs on XAMPP and on the school's PHP hosting with nothing to install |
-| Database | **MySQL / MariaDB** (three databases: `kantina`, `kantina_erp`, `kantina_cms`) | Relational data (orders, stock, ledger) with transactions and row locking; each system owns its own data |
+| Database | **MySQL / MariaDB** (three databases: `kantina`, `kantina_erp`, `kantina_crm`) | Relational data (orders, stock, ledger) with transactions and row locking; each system owns its own data |
 | Data access | **PDO** with prepared statements | Protects against SQL injection |
 | ERP integration | **Kantina ERP** REST API + signed webhooks | Inventory and the sales ledger live in the ERP, not in the ordering app |
-| CMS integration | **Kantina CMS** REST API + signed webhooks | Content is edited by the canteen admin without touching code |
+| CRM integration | **Kantina CRM** REST API + signed webhooks | Customer history, loyalty and feedback live in the CRM, not in the ordering app |
 | Authentication | **JWT** (HS256), bcrypt passwords | Stateless API sessions for the student app and console |
 | Integration security | API keys, **HMAC-SHA256** webhook signatures | Systems trust only each other |
 | Email (third-party cloud API) | **Brevo transactional email API** | Order and reservation emails over HTTPS; free tier |
@@ -209,9 +213,9 @@ Every email is stored in the `notifications` table. Without an API key, the emai
 
 | Database | Main tables |
 |---|---|
-| `kantina` | `users`, `stalls`*, `menu_items`*, `announcements`*, `favourites`, `checkouts`, `orders`, `order_items`, `dining_tables`, `reservations`, `table_blocks`, `integration_outbox`, `webhook_log`, `notifications`, `request_log`, `kv_store` (* = cache of CMS/ERP data) |
+| `kantina` | `users`, `stalls`*, `menu_items`*, `announcements`*, `favourites`, `checkouts`, `orders`, `order_items`, `dining_tables`, `reservations`, `table_blocks`, `integration_outbox`, `webhook_log`, `notifications`, `request_log`, `kv_store` (* = price/stock copied from the ERP) |
 | `kantina_erp` | `erp_stalls`, `erp_products`, `erp_stock_movements`, `erp_sales_orders`, `erp_sales_order_lines`, `erp_webhook_deliveries`, `erp_admins` |
-| `kantina_cms` | `cms_stalls`, `cms_menu_entries`, `cms_announcements`, `cms_webhook_deliveries`, `cms_admins` |
+| `kantina_crm` | `crm_customers`, `crm_interactions`, `crm_tickets` (#53), `crm_webhook_deliveries`, `crm_admins` |
 
 Schemas and demo data: `database/*.sql`.
 
@@ -222,8 +226,8 @@ Schemas and demo data: `database/*.sql`.
 ```
 kantina.<school-domain>       → kantina/   (student app, seller/, api/, api/docs/)
 kantina-erp.<school-domain>   → erp/       (api/, admin/)
-kantina-cms.<school-domain>   → cms/       (api/, admin/, media/)
-MySQL: kantina, kantina_erp, kantina_cms
+kantina-crm.<school-domain>   → crm/       (api/, admin/)
+MySQL: kantina, kantina_erp, kantina_crm
 ```
-If only one subdomain is available, the three folders can sit side by side under it (`/kantina`, `/erp`, `/cms`).
+If only one subdomain is available, the three folders can sit side by side under it (`/kantina`, `/erp`, `/crm`).
 See the README, section **Deployment**.
