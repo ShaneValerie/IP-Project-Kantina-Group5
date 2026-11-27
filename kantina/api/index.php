@@ -21,6 +21,7 @@ $modules = [
     'Orders',
     'Reservations',
     'Profile',
+    'Seller',
 ];
 foreach ($modules as $module) {
     require_once __DIR__ . "/src/$module.php";
