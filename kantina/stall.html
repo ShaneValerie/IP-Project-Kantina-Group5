@@ -75,14 +75,13 @@
       : PLACEHOLDER;
     const text = `<strong>${escapeHtml(item.name)}</strong>`
       + (item.description ? `<span class="menu-desc">${escapeHtml(item.description)}</span>` : '');
-    const price = `<span class="price">${Fmt.peso(item.price)}</span>`;
-    // A temporarily closed stall reports every item as unavailable: show them plainly, just not clickable.
-    if (!stall.accepts_orders && !item.sold_out) {
-      return `<div class="menu-row"><div class="menu-thumb">${photo}</div><div class="menu-text">${text}${price}</div></div>`;
-    }
     if (item.sold_out || !item.available) {
       const why = item.sold_out ? 'Sold out today' : 'Not available today';
       return `<div class="menu-row soldout"><div class="menu-thumb">${photo}</div><div class="menu-text">${text}<span class="soldout-tag">${Fmt.peso(item.price)} · ${why}</span></div></div>`;
+    }
+    const price = `<span class="price">${Fmt.peso(item.price)}</span>`;
+    if (!stall.accepts_orders) {
+      return `<div class="menu-row"><div class="menu-thumb">${photo}</div><div class="menu-text">${text}${price}</div></div>`;
     }
     return `<a class="menu-row" href="item.html?sku=${encodeURIComponent(item.sku)}"><div class="menu-thumb">${photo}</div><div class="menu-text">${text}${price}</div><div class="add-fab">${PLUS}</div></a>`;
   }
@@ -108,8 +107,7 @@
     sidebar.hidden = bar.hidden = count === 0;
     if (!count) return;
     sidebar.innerHTML = '<h3>Your order</h3>'
-      + Cart.byStall().map(g => `<div class="tray-stall">${escapeHtml(g.stall.name)}</div>`
-        + g.items.map(i => `<div class="summary-row"><span>${i.qty}× ${escapeHtml(i.name)}</span><span>${Fmt.peso(Cart.lineTotal(i))}</span></div>`).join('')).join('')
+      + Cart.items().map(i => `<div class="summary-row"><span>${i.qty}× ${escapeHtml(i.name)}</span><span>${Fmt.peso(Cart.lineTotal(i))}</span></div>`).join('')
       + `<div class="summary-row total"><span>Subtotal</span><span>${Fmt.peso(Cart.subtotal())}</span></div>`
       + '<a class="btn btn-primary" href="cart.html">View cart</a>';
     bar.innerHTML = `<span>View cart · ${count} ${count === 1 ? 'item' : 'items'}</span><span class="amt">${Fmt.peso(Cart.subtotal())}</span>`;
@@ -122,7 +120,7 @@
 
   renderTray();
   const id = qs('id');
-  if (!id) { location.replace('home.html'); return; }   // older links (cart, profile) don't name a stall yet
+  if (!id) { showError('No stall was chosen.'); return; }
 
   Api.get('/stalls/' + encodeURIComponent(id) + '/menu')
     .then(res => {
