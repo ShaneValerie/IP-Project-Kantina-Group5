@@ -19,6 +19,8 @@ $modules = [
     'Integrations',
     'Outbox',
     'Orders',
+    'Reservations',
+    'Profile',
 ];
 foreach ($modules as $module) {
     require_once __DIR__ . "/src/$module.php";
