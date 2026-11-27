@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Lola's Silog — Kantina</title>
+<title>Stall — Kantina</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">
 </head>
@@ -31,59 +31,114 @@
   <header class="flow-head">
   <div class="flow-head-top">
     <a class="icon-btn" href="home.html" aria-label="Back to home"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-    <span class="flow-head-badge">Open now</span>
+    <span class="flow-head-badge" id="stall-badge" hidden></span>
   </div>
   <div class="flow-head-text">
-    <h1 class="flow-head-name">Lola&rsquo;s Silog</h1>
-    <p>Rice meals &middot; ready in about 10 min</p>
+    <h1 class="flow-head-name" id="stall-name">Loading…</h1>
+    <p id="stall-meta"></p>
   </div>
   </header>
 
   <div class="scroll" style="position:relative;">
     <div class="stall-layout">
       <div class="menu-col">
-        <div class="tab-row">
-          <div class="segtab active">Silog</div>
-          <div class="segtab">Ulam</div>
-          <div class="segtab">Add-ons</div>
-        </div>
-
-        <div class="menu-list">
-          <a class="menu-row" href="item.html">
-            <div class="menu-thumb"><img class="photo-img" src="assets/img/food/tapsilog.jpg" alt="Tapsilog" loading="lazy"></div>
-            <div class="menu-text"><strong>Tapsilog</strong><span class="menu-desc">Beef tapa, garlic rice, egg</span><span class="price">₱85</span></div>
-            <div class="add-fab">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-            </div>
-          </a>
-          <div class="menu-row">
-            <div class="menu-thumb"><img class="photo-img" src="assets/img/food/longsilog.jpg" alt="Longsilog" loading="lazy"></div>
-            <div class="menu-text"><strong>Longsilog</strong><span class="menu-desc">Longganisa, garlic rice, egg</span><span class="price">₱75</span></div>
-            <div class="add-fab">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-            </div>
-          </div>
-          <div class="menu-row soldout">
-            <div class="menu-thumb"><img class="photo-img" src="assets/img/food/bangsilog.jpg" alt="Bangsilog" loading="lazy"></div>
-            <div class="menu-text"><strong>Bangsilog</strong><span class="menu-desc">Milkfish, garlic rice, egg</span><span class="soldout-tag">₱90 · Sold out today</span></div>
-          </div>
-        </div>
+        <div class="tab-row" id="section-tabs" role="tablist"></div>
+        <div class="menu-list" id="menu-list"></div>
       </div>
 
-      <aside class="order-sidebar">
-        <h3>Your order</h3>
-        <div class="summary-row"><span>1× Tapsilog</span><span>₱85</span></div>
-        <div class="summary-row"><span>1× Iced coffee</span><span>₱60</span></div>
-        <div class="summary-row total"><span>Subtotal</span><span>₱145</span></div>
-        <a class="btn btn-primary" href="cart.html">View cart</a>
-      </aside>
+      <aside class="order-sidebar" id="order-sidebar" hidden></aside>
     </div>
 
-    <a class="cart-bar" href="cart.html">
-      <span>View cart · 2 items</span>
-      <span class="amt">₱145</span>
-    </a>
+    <a class="cart-bar" id="cart-bar" href="cart.html" hidden></a>
   </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
+<script src="js/api.js"></script>
+<script src="app.js"></script>
+<script>
+// Stall menu: GET /stalls/{id}/menu. Section tabs switch the list; the order
+// panel and "View cart" bar come from the tray in Cart.
+(function () {
+  Auth.requireStudent();
+
+  const PLACEHOLDER = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 3v8a2.5 2.5 0 0 0 2.5 2.5V21M4 3v5M6.5 3v5M4 6.5h2.5M15 3c-1.6 1-1.6 3.5-1.6 5.2 0 1.4.7 2.3 1.6 2.6V21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const PLUS = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  const tabsEl = document.getElementById('section-tabs');
+  const listEl = document.getElementById('menu-list');
+  let sections = [];
+  let stall = null;
+
+  function menuRow(item) {
+    const photo = item.photo_url
+      ? `<img class="photo-img" src="${escapeHtml(item.photo_url)}" alt="${escapeHtml(item.name)}" loading="lazy">`
+      : PLACEHOLDER;
+    const text = `<strong>${escapeHtml(item.name)}</strong>`
+      + (item.description ? `<span class="menu-desc">${escapeHtml(item.description)}</span>` : '');
+    if (item.sold_out || !item.available) {
+      const why = item.sold_out ? 'Sold out today' : 'Not available today';
+      return `<div class="menu-row soldout"><div class="menu-thumb">${photo}</div><div class="menu-text">${text}<span class="soldout-tag">${Fmt.peso(item.price)} · ${why}</span></div></div>`;
+    }
+    const price = `<span class="price">${Fmt.peso(item.price)}</span>`;
+    if (!stall.accepts_orders) {
+      return `<div class="menu-row"><div class="menu-thumb">${photo}</div><div class="menu-text">${text}${price}</div></div>`;
+    }
+    return `<a class="menu-row" href="item.html?sku=${encodeURIComponent(item.sku)}"><div class="menu-thumb">${photo}</div><div class="menu-text">${text}${price}</div><div class="add-fab">${PLUS}</div></a>`;
+  }
+
+  function showSection(index) {
+    tabsEl.querySelectorAll('.segtab').forEach((t, i) => {
+      t.classList.toggle('active', i === index);
+      t.setAttribute('aria-selected', i === index);
+    });
+    const notice = stall.accepts_orders ? '' : '<p class="load-msg">This stall isn\u2019t taking orders right now.</p>';
+    listEl.innerHTML = notice + sections[index].items.map(menuRow).join('');
+  }
+
+  tabsEl.addEventListener('click', (e) => {
+    const tab = e.target.closest('.segtab');
+    if (tab) showSection(Number(tab.dataset.index));
+  });
+
+  function renderTray() {
+    const count = Cart.count();
+    const sidebar = document.getElementById('order-sidebar');
+    const bar = document.getElementById('cart-bar');
+    sidebar.hidden = bar.hidden = count === 0;
+    if (!count) return;
+    sidebar.innerHTML = '<h3>Your order</h3>'
+      + Cart.items().map(i => `<div class="summary-row"><span>${i.qty}× ${escapeHtml(i.name)}</span><span>${Fmt.peso(Cart.lineTotal(i))}</span></div>`).join('')
+      + `<div class="summary-row total"><span>Subtotal</span><span>${Fmt.peso(Cart.subtotal())}</span></div>`
+      + '<a class="btn btn-primary" href="cart.html">View cart</a>';
+    bar.innerHTML = `<span>View cart · ${count} ${count === 1 ? 'item' : 'items'}</span><span class="amt">${Fmt.peso(Cart.subtotal())}</span>`;
+  }
+
+  function showError(message) {
+    document.getElementById('stall-name').textContent = 'Stall not found';
+    listEl.innerHTML = `<p class="load-msg">${escapeHtml(message)} <a href="home.html">Back to stalls</a></p>`;
+  }
+
+  renderTray();
+  const id = qs('id');
+  if (!id) { showError('No stall was chosen.'); return; }
+
+  Api.get('/stalls/' + encodeURIComponent(id) + '/menu')
+    .then(res => {
+      stall = res.stall;
+      sections = res.sections.filter(sec => sec.items.length);
+      document.title = stall.name + ' \u2014 Kantina';
+      document.getElementById('stall-name').textContent = stall.name;
+      document.getElementById('stall-meta').textContent = stall.category + ' \u00b7 ready in about ' + stall.prep_minutes + ' min';
+      const badge = document.getElementById('stall-badge');
+      badge.textContent = stall.status_text;
+      badge.hidden = false;
+      if (!sections.length) { listEl.innerHTML = '<p class="load-msg">No menu items yet.</p>'; return; }
+      tabsEl.innerHTML = sections.map((sec, i) =>
+        `<button type="button" class="segtab" role="tab" data-index="${i}">${escapeHtml(sec.name)}</button>`).join('');
+      showSection(0);
+    })
+    .catch(err => showError(err.message));
+})();
+</script>
 </body>
 </html>

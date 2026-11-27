@@ -33,7 +33,7 @@
       <span class="wordmark">Kantina</span>
       <a class="icon-btn" href="cart.html" aria-label="Cart"><svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg></a>
     </div>
-    <h2 id="greeting">What&rsquo;s for lunch, Ana?</h2>
+    <h2 id="greeting">What&rsquo;s for lunch?</h2>
     <div class="search-bar">
       <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       <span>Search food or stall</span>
@@ -42,6 +42,8 @@
 
   <div class="scroll">
     <div class="home-body">
+      <div id="announcement"></div>
+
       <a class="reserve-banner" href="reserve.html">
         <div class="icon-wrap">
           <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -53,56 +55,11 @@
         <span class="btn-mini">Reserve</span>
       </a>
 
-      <div class="chip-row">
-        <div class="chip active">All</div>
-        <div class="chip">Rice meals</div>
-        <div class="chip">Snacks</div>
-        <div class="chip">Drinks</div>
-      </div>
+      <div class="chip-row" id="category-chips" role="group" aria-label="Filter stalls by category"></div>
 
-      <div class="section-label">4 stalls open now</div>
+      <div class="section-label" id="open-count">Loading stalls…</div>
 
-      <div class="stall-list">
-        <a class="stall-card" href="stall.html">
-          <div class="stall-thumb">
-            <img class="photo-img" src="assets/img/stalls/lolas-silog.jpg" alt="Garlic fried rice from Lola's Silog" loading="lazy">
-          </div>
-          <div class="stall-info">
-            <div class="text"><strong>Lola's Silog</strong><span class="meta">Rice meals · ~10 min</span></div>
-            <span class="open-badge">Open</span>
-          </div>
-        </a>
-
-        <a class="stall-card" href="stall.html">
-          <div class="stall-thumb">
-            <img class="photo-img" src="assets/img/stalls/kape-kanto.jpg" alt="Coffee from Kape Kanto" loading="lazy">
-          </div>
-          <div class="stall-info">
-            <div class="text"><strong>Kape Kanto</strong><span class="meta">Drinks · ~5 min</span></div>
-            <span class="open-badge">Open</span>
-          </div>
-        </a>
-
-        <div class="stall-card disabled">
-          <div class="stall-thumb">
-            <img class="photo-img" src="assets/img/stalls/noodle-bar.jpg" alt="Stir-fried noodles from Noodle Bar" loading="lazy">
-          </div>
-          <div class="stall-info">
-            <div class="text"><strong>Noodle Bar</strong><span class="meta">Closed until 2 PM</span></div>
-            <span class="open-badge">Closed</span>
-          </div>
-        </div>
-
-        <div class="stall-card disabled">
-          <div class="stall-thumb">
-            <img class="photo-img" src="assets/img/stalls/grill-station.jpg" alt="Grilled skewers from Grill Station" loading="lazy">
-          </div>
-          <div class="stall-info">
-            <div class="text"><strong>Grill Station</strong><span class="meta">Snacks · Closed until 1 PM</span></div>
-            <span class="open-badge">Closed</span>
-          </div>
-        </div>
-      </div>
+      <div class="stall-list" id="stall-list"></div>
     </div>
   </div>
 
@@ -124,11 +81,19 @@
       <span>Profile</span>
     </a>
   </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
+<script src="js/api.js"></script>
+<script src="app.js"></script>
 <script>
-// Greeting changes with the time of day (canteen serves 7 AM to 6 PM).
+// Home: stalls, category chips and the announcement come from the API
+// (GET /stalls, GET /announcements). Chips filter the list without another request.
 (function () {
-  const name = 'Ana';
+  const user = Auth.requireStudent();
+
+  // Greeting changes with the time of day (canteen serves 7 AM to 6 PM).
+  const name = user.first_name;
   const now = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
   let text;
@@ -137,6 +102,84 @@
   else if (mins >= 14 * 60 && mins < 18 * 60) text = 'Merienda time, ' + name + '?';
   else text = 'Plan tomorrow\u2019s meal, ' + name + '?';
   document.getElementById('greeting').textContent = text;
+
+  const PLACEHOLDER = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 3v8a2.5 2.5 0 0 0 2.5 2.5V21M4 3v5M6.5 3v5M4 6.5h2.5M15 3c-1.6 1-1.6 3.5-1.6 5.2 0 1.4.7 2.3 1.6 2.6V21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const listEl = document.getElementById('stall-list');
+  const chipsEl = document.getElementById('category-chips');
+  const countEl = document.getElementById('open-count');
+  let stalls = [];
+  let category = '';
+
+  function stallCard(s) {
+    const photo = s.photo_url
+      ? `<img class="photo-img" src="${escapeHtml(s.photo_url)}" alt="${escapeHtml(s.name)}" loading="lazy">`
+      : PLACEHOLDER;
+    const inner = `
+          <div class="stall-thumb">${photo}</div>
+          <div class="stall-info">
+            <div class="text"><strong>${escapeHtml(s.name)}</strong><span class="meta">${escapeHtml(s.category)} · ~${Number(s.prep_minutes)} min</span></div>
+            <span class="open-badge${s.is_open ? '' : ' closed'}">${escapeHtml(s.status_text)}</span>
+          </div>`;
+    // Students can pre-order outside opening hours; only temporarily closed stalls are greyed out.
+    return s.accepts_orders
+      ? `<a class="stall-card" href="stall.html?id=${encodeURIComponent(s.id)}">${inner}</a>`
+      : `<div class="stall-card disabled" aria-disabled="true">${inner}</div>`;
+  }
+
+  function renderList() {
+    const shown = category ? stalls.filter(s => s.category === category) : stalls;
+    listEl.innerHTML = shown.length
+      ? shown.map(stallCard).join('')
+      : '<p class="load-msg">No stalls in this category yet.</p>';
+  }
+
+  function renderChips(categories) {
+    chipsEl.innerHTML = [''].concat(categories).map(c =>
+      `<button type="button" class="chip${c === category ? ' active' : ''}" data-category="${escapeHtml(c)}" aria-pressed="${c === category}">${c ? escapeHtml(c) : 'All'}</button>`
+    ).join('');
+  }
+
+  chipsEl.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    category = chip.dataset.category;
+    chipsEl.querySelectorAll('.chip').forEach(c => {
+      const on = c === chip;
+      c.classList.toggle('active', on);
+      c.setAttribute('aria-pressed', on);
+    });
+    renderList();
+  });
+
+  Api.get('/stalls')
+    .then(res => {
+      stalls = res.stalls;
+      const n = res.open_count;
+      countEl.textContent = n
+        ? n + (n === 1 ? ' stall' : ' stalls') + ' open now'
+        : 'No stalls open right now · pre-order for later';
+      renderChips(res.categories);
+      renderList();
+    })
+    .catch(err => {
+      countEl.textContent = '';
+      listEl.innerHTML = `<p class="load-msg">${escapeHtml(err.message)}</p>`;
+    });
+
+  // Optional: the newest announcement from the CMS, styled like the reserve banner.
+  Api.get('/announcements')
+    .then(res => {
+      const a = res.announcements[0];
+      if (!a) return;
+      const link = a.link_url && /^[\w\-./?=&#]+$/.test(a.link_url) && a.link_url !== 'home.html' ? a.link_url : '';
+      const body = `
+        <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v5M12 8h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <div class="text"><strong>${escapeHtml(a.title)}</strong><span>${escapeHtml(a.body)}</span></div>`;
+      document.getElementById('announcement').innerHTML = link
+        ? `<a class="reserve-banner announce" href="${escapeHtml(link)}">${body}</a>`
+        : `<div class="reserve-banner announce">${body}</div>`;
+    })
+    .catch(() => { /* announcements are optional */ });
 })();
 </script>
 </body>
