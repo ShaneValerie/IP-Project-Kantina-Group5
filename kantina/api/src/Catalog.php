@@ -2,12 +2,12 @@
 /**
  * Catalog: stalls, menus and announcements.
  *
- * Kantina serves the catalog from its own tables, which are a cache of:
- *   - Kantina CMS  -> names, descriptions, photos, sections, add-ons, hours
- *   - Kantina ERP  -> price, stock, availability
- * joined by SKU. The cache is refreshed by webhooks (instant) and by a
- * full sync (POST /integrations/cms/sync), so pages never wait on the
- * other systems and keep working if they are briefly offline.
+ * Kantina owns the menu content (stalls, names, descriptions, photos,
+ * sections, add-ons, announcements) and staff edit it in the store console.
+ * Price, stock and availability come from the Kantina ERP item master,
+ * joined by SKU. The ERP copy is refreshed by ERP webhooks (instant) and by
+ * a full sync (POST /integrations/erp/sync), so pages never wait on the ERP
+ * and keep working if it is briefly offline.
  */
 final class Catalog
 {
@@ -116,7 +116,7 @@ final class Catalog
         if (!$path) {
             return null;
         }
-        return preg_match('#^https?://#', $path) ? $path : Config::url('cms') . '/media/' . ltrim($path, '/');
+        return preg_match('#^https?://#', $path) ? $path : Config::url('kantina') . '/assets/img/' . ltrim($path, '/');
     }
 
     /** Open now? Accepting (pre-)orders? What should the badge say? */
@@ -181,123 +181,37 @@ final class Catalog
     }
 
     // ================================================================ syncing
-    /** Pull everything from the CMS and the ERP. Returns counts for the status page. */
+    /** Pull every product from the ERP (price, stock, availability). Returns counts for the status page. */
     public static function fullSync(): array
     {
-        $cms = CmsClient::must('GET', '/content', null, 10);
         $erp = ErpClient::must('GET', '/products', null, 10);
-        Db::tx(function () use ($cms, $erp) {
-            $stallIds = [];
-            foreach ($cms['stalls'] as $s) {
-                self::upsertStall($s);
-                $stallIds[] = $s['id'];
-            }
-            self::unpublishMissing('stalls', 'id', $stallIds);
-
-            $skus = [];
-            foreach ($cms['menu_content'] as $e) {
-                self::upsertEntry($e);
-                $skus[] = $e['sku'];
-            }
-            self::unpublishMissing('menu_items', 'sku', $skus);
-
-            self::replaceAnnouncements($cms['announcements']);
-
+        Db::tx(function () use ($erp) {
             foreach ($erp['products'] as $p) {
                 self::applyErpProduct($p);
             }
         });
-        Support::kvSet('last_cms_sync', date('c'));
         Support::kvSet('last_erp_sync', date('c'));
         return [
-            'stalls' => count($cms['stalls']),
-            'menu_content' => count($cms['menu_content']),
-            'announcements' => count($cms['announcements']),
             'erp_products' => count($erp['products']),
             'synced_at' => date('c'),
         ];
     }
 
-    public static function syncStall(string $id): void
-    {
-        $res = CmsClient::call('GET', '/stalls/' . rawurlencode($id));
-        if ($res['status'] === 404 || ($res['ok'] && empty($res['body']['stall']['is_published']))) {
-            Db::exec('UPDATE stalls SET is_published = 0, synced_at = NOW() WHERE id = ?', [$id]);
-            return;
-        }
-        if (!$res['ok']) {
-            throw new HttpError(502, 'cms_unavailable', 'Kantina CMS is not responding: ' . $res['error']);
-        }
-        self::upsertStall($res['body']['stall']);
-        Support::kvSet('last_cms_sync', date('c'));
-    }
-
-    public static function syncEntry(string $sku): void
-    {
-        $res = CmsClient::call('GET', '/menu-content/' . rawurlencode($sku));
-        if ($res['status'] === 404) {
-            Db::exec('UPDATE menu_items SET is_published = 0, cms_synced_at = NOW() WHERE sku = ?', [$sku]);
-            return;
-        }
-        if (!$res['ok']) {
-            throw new HttpError(502, 'cms_unavailable', 'Kantina CMS is not responding: ' . $res['error']);
-        }
-        self::upsertEntry($res['body']['entry']);
-        Support::kvSet('last_cms_sync', date('c'));
-    }
-
-    public static function syncAnnouncements(): void
-    {
-        $body = CmsClient::must('GET', '/announcements');
-        self::replaceAnnouncements($body['announcements']);
-        Support::kvSet('last_cms_sync', date('c'));
-    }
-
-    public static function upsertStall(array $s): void
-    {
-        Db::exec(
-            'INSERT INTO stalls (id, name, category, description, photo_path, counter_label, prep_minutes, opens_at, closes_at,
-                                 temporarily_closed, closed_note, sort_order, is_published, synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-             ON DUPLICATE KEY UPDATE name = VALUES(name), category = VALUES(category), description = VALUES(description),
-               photo_path = VALUES(photo_path), counter_label = VALUES(counter_label), prep_minutes = VALUES(prep_minutes),
-               opens_at = VALUES(opens_at), closes_at = VALUES(closes_at), temporarily_closed = VALUES(temporarily_closed),
-               closed_note = VALUES(closed_note), sort_order = VALUES(sort_order), is_published = VALUES(is_published), synced_at = NOW()',
-            [
-                $s['id'], $s['name'], $s['category'], $s['description'], $s['photo'], $s['counter'], (int) $s['prep_minutes'],
-                $s['opens_at'] . ':00', $s['closes_at'] . ':00', !empty($s['temporarily_closed']) ? 1 : 0, $s['closed_note'],
-                (int) $s['sort_order'], !empty($s['is_published']) ? 1 : 0,
-            ]
-        );
-    }
-
-    /** Content fields only — price/stock stay as the ERP last said. */
-    public static function upsertEntry(array $e): void
-    {
-        Db::exec(
-            'INSERT INTO menu_items (sku, stall_id, type, section, name, description, photo_path, addon_skus, sort_order, is_published,
-                                     cms_synced_at, price, stock, track_stock, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 0, 0, 1, 0)
-             ON DUPLICATE KEY UPDATE stall_id = VALUES(stall_id), type = VALUES(type), section = VALUES(section), name = VALUES(name),
-               description = VALUES(description), photo_path = VALUES(photo_path), addon_skus = VALUES(addon_skus),
-               sort_order = VALUES(sort_order), is_published = VALUES(is_published), cms_synced_at = NOW()',
-            [
-                $e['sku'], $e['stall_id'], $e['type'], $e['section'], $e['name'], $e['description'], $e['photo'],
-                $e['addon_skus'] ? implode(',', $e['addon_skus']) : null, (int) $e['sort_order'], !empty($e['is_published']) ? 1 : 0,
-            ]
-        );
-    }
-
-    /** Price/stock/availability fields only — content stays as the CMS last said. */
+    /**
+     * Price/stock/availability fields only — the content (name shown to
+     * students, description, photo, section) stays as Kantina has it.
+     * A product added in the ERP that Kantina has never seen is listed under
+     * its ERP name, so staff can then describe it in the store console.
+     */
     public static function applyErpProduct(array $p): void
     {
         Db::exec(
-            'INSERT INTO menu_items (sku, stall_id, type, name, price, stock, track_stock, is_active, is_published, erp_synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())
+            'INSERT INTO menu_items (sku, stall_id, type, section, name, price, stock, track_stock, is_active, is_published, erp_synced_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
              ON DUPLICATE KEY UPDATE price = VALUES(price), stock = VALUES(stock), track_stock = VALUES(track_stock),
                is_active = VALUES(is_active), erp_synced_at = NOW()',
             [
-                $p['sku'], $p['stall_code'], $p['type'], $p['name'], $p['price'], (int) $p['stock'],
+                $p['sku'], $p['stall_code'], $p['type'], $p['type'] === 'addon' ? 'Add-ons' : 'Menu', $p['name'], $p['price'], (int) $p['stock'],
                 !empty($p['track_stock']) ? 1 : 0, !empty($p['is_active']) ? 1 : 0,
             ]
         );
@@ -312,31 +226,14 @@ final class Catalog
         }
     }
 
-    private static function replaceAnnouncements(array $list): void
+    /** Save content edits made in the store console (name, description, section). */
+    public static function saveContent(string $sku, array $fields): void
     {
-        Db::exec('DELETE FROM announcements');
-        foreach ($list as $a) {
-            Db::insert('announcements', [
-                'id' => (int) $a['id'],
-                'title' => $a['title'],
-                'body' => $a['body'],
-                'image_path' => $a['image'],
-                'link_url' => $a['link_url'],
-                'starts_at' => $a['starts_at'] ? date('Y-m-d H:i:s', strtotime($a['starts_at'])) : null,
-                'ends_at' => $a['ends_at'] ? date('Y-m-d H:i:s', strtotime($a['ends_at'])) : null,
-                'sort_order' => (int) $a['sort_order'],
-                'synced_at' => date('Y-m-d H:i:s'),
-            ]);
-        }
-    }
-
-    private static function unpublishMissing(string $table, string $key, array $present): void
-    {
-        if (!$present) {
-            Db::exec("UPDATE $table SET is_published = 0");
+        $fields = array_intersect_key($fields, array_flip(['name', 'description', 'section']));
+        if (!$fields) {
             return;
         }
-        $in = implode(',', array_fill(0, count($present), '?'));
-        Db::exec("UPDATE $table SET is_published = 0 WHERE $key NOT IN ($in)", $present);
+        $sets = implode(', ', array_map(fn($col) => "$col = ?", array_keys($fields)));
+        Db::exec("UPDATE menu_items SET $sets, content_updated_at = NOW() WHERE sku = ?", array_merge(array_values($fields), [$sku]));
     }
 }

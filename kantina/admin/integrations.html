@@ -41,7 +41,7 @@
 </head>
 <body>
 <header>
-  <h1>Kantina · Integrations status <small>ERP + CMS + email</small></h1>
+  <h1>Kantina · Integrations status <small>ERP + CRM + email</small></h1>
   <div class="row" id="who" hidden><span id="who-name"></span> · <a href="../api/docs/">API docs</a> · <button class="link" type="button" id="logout">Sign out</button></div>
 </header>
 
@@ -57,12 +57,12 @@
 <main id="app" hidden>
   <div class="grid">
     <div class="card" id="erp-card"></div>
-    <div class="card" id="cms-card"></div>
+    <div class="card" id="crm-card" hidden></div>
     <div class="card">
-      <h2>Catalog sync</h2>
-      <div class="small muted">Last CMS sync: <span id="sync-cms">—</span><br>Last ERP update: <span id="sync-erp">—</span></div>
-      <p class="small muted">Webhooks keep Kantina up to date automatically. Use this after deploying or if something looks out of date.</p>
-      <button class="btn secondary" type="button" id="sync-btn">Sync catalog now</button>
+      <h2>Prices &amp; stock sync</h2>
+      <div class="small muted">Last ERP update: <span id="sync-erp">—</span></div>
+      <p class="small muted">ERP webhooks keep prices and stock up to date automatically. Use this after deploying or if something looks out of date.</p>
+      <button class="btn secondary" type="button" id="sync-btn">Sync from ERP now</button>
     </div>
   </div>
 
@@ -76,7 +76,7 @@
   </div>
 
   <div class="card">
-    <h2>Webhooks received <span class="muted small">HMAC-verified events from the ERP and CMS</span></h2>
+    <h2>Webhooks received <span class="muted small">HMAC-verified events from the ERP and CRM</span></h2>
     <div class="wrap"><table id="webhooks"></table></div>
   </div>
 
@@ -110,8 +110,7 @@
 
   function render(d) {
     systemCard($('erp-card'), d.erp);
-    systemCard($('cms-card'), d.cms);
-    $('sync-cms').textContent = when(d.last_sync.cms);
+    if (d.crm) { systemCard($('crm-card'), d.crm); $('crm-card').hidden = false; }
     $('sync-erp').textContent = when(d.last_sync.erp);
 
     var o = d.outbox;
@@ -128,7 +127,7 @@
       (d.webhooks.length ? d.webhooks.map(function (w) {
         return '<tr><td>' + badge(w.source.toUpperCase()) + '</td><td><code>' + escapeHtml(w.event || '—') + '</code></td><td>' + (w.signature_ok ? badge('valid', 'ok') : badge('invalid', 'bad')) + '</td><td>' +
           badge(w.status, w.status === 'processed' ? 'ok' : (w.status === 'duplicate' ? '' : 'bad')) + (w.error ? '<div class="small muted">' + escapeHtml(w.error) + '</div>' : '') + '</td><td class="small muted">' + when(w.received_at) + '</td></tr>';
-      }).join('') : '<tr><td colspan="5" class="muted">No webhooks yet — change a price in the ERP admin or publish in the CMS admin.</td></tr>');
+      }).join('') : '<tr><td colspan="5" class="muted">No webhooks yet — change a price or stock level in the ERP admin.</td></tr>');
 
     $('emails').innerHTML = '<tr><th>Type</th><th>To</th><th>Subject</th><th>Status</th><th>Sent</th></tr>' +
       (d.notifications.length ? d.notifications.map(function (n) {
@@ -166,8 +165,8 @@
     }).catch(function (e) { toast(e.message); }));
   });
   $('sync-btn').addEventListener('click', function () {
-    busy(this, 'Syncing…', Api.post('/integrations/cms/sync').then(function (r) {
-      toast('Synced ' + r.synced.stalls + ' stalls, ' + r.synced.menu_content + ' menu items, ' + r.synced.erp_products + ' ERP products');
+    busy(this, 'Syncing…', Api.post('/integrations/erp/sync').then(function (r) {
+      toast('Synced ' + r.synced.erp_products + ' products from the ERP');
       return load();
     }).catch(function (e) { toast(e.message); }));
   });

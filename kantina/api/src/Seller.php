@@ -5,7 +5,7 @@
  *
  *   Orders board   pending → paid → preparing → ready → completed
  *   Menu           price / stock / availability → Kantina ERP
- *                  name / description / section → Kantina CMS
+ *                  name / description / section → saved in Kantina
  *   Tables         floor map, block slots for cleaning or events
  *   Analytics      revenue, orders and top items from the ERP sales ledger
  */
@@ -176,7 +176,7 @@ final class Seller
         return $row;
     }
 
-    /** New item: created in the ERP (gets its SKU, price, stock) and in the CMS (name, description). */
+    /** New item: created in the ERP (gets its SKU, price, stock), then described in Kantina (section, description). */
     public static function createItem(Request $req): array
     {
         $stall = Auth::stallOf($req);
@@ -201,19 +201,11 @@ final class Seller
         ]);
         $product = $erp['product'];
         Catalog::applyErpProduct($product);
-        $cms = CmsClient::call('POST', '/menu-content', [
-            'sku' => $product['sku'],
-            'stall_id' => $stall,
-            'type' => $type,
-            'section' => $d['section'] ?? ($type === 'addon' ? 'Add-ons' : 'Menu'),
+        Catalog::saveContent($product['sku'], [
             'name' => $d['name'],
+            'section' => $d['section'] ?? ($type === 'addon' ? 'Add-ons' : 'Menu'),
             'description' => $d['description'] ?? null,
-            'is_published' => true,
         ]);
-        if (!$cms['ok']) {
-            throw new HttpError(502, 'cms_unavailable', "Saved in Kantina ERP as {$product['sku']}, but Kantina CMS did not respond, so students can't see it yet. Edit the item again to retry.");
-        }
-        Catalog::upsertEntry($cms['body']['entry']);
         return [['item' => self::formatMenuItem(self::ownItem($stall, $product['sku']))], 201];
     }
 
@@ -242,20 +234,7 @@ final class Seller
             $erp = ErpClient::must('PATCH', '/products/' . rawurlencode($row['sku']), $erpFields);
             Catalog::applyErpProduct($erp['product']);
         }
-        $cmsFields = array_intersect_key($d, array_flip(['name', 'description', 'section']));
-        if ($cmsFields) {
-            $cms = CmsClient::call('PATCH', '/menu-content/' . rawurlencode($row['sku']), $cmsFields);
-            if ($cms['status'] === 404) {
-                // Content was never created (e.g. the CMS was down when the item was added) — create it now.
-                $cms = CmsClient::call('POST', '/menu-content', $cmsFields + [
-                    'sku' => $row['sku'], 'stall_id' => $stall, 'type' => $row['type'], 'name' => $d['name'] ?? $row['name'], 'is_published' => true,
-                ]);
-            }
-            if (!$cms['ok']) {
-                throw new HttpError(502, 'cms_unavailable', 'Kantina CMS is not responding, so the name/description was not saved. ' . ($erpFields ? 'Price and stock were saved.' : ''));
-            }
-            Catalog::upsertEntry($cms['body']['entry']);
-        }
+        Catalog::saveContent($row['sku'], $d);
         return ['item' => self::formatMenuItem(self::ownItem($stall, $row['sku']))];
     }
 

@@ -166,7 +166,7 @@
       listEl.innerHTML = `<p class="load-msg">${escapeHtml(err.message)}</p>`;
     });
 
-  // Optional: the newest announcement from the CMS, styled like the reserve banner.
+  // Optional: the newest announcement, styled like the reserve banner.
   Api.get('/announcements')
     .then(res => {
       const a = res.announcements[0];

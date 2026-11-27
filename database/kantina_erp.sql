@@ -30,7 +30,7 @@ CREATE TABLE erp_admins (
 
 -- Each stall is a cost center in the ERP
 CREATE TABLE erp_stalls (
-  code        VARCHAR(40) NOT NULL PRIMARY KEY,   -- same id as Kantina / CMS (e.g. lolas-silog)
+  code        VARCHAR(40) NOT NULL PRIMARY KEY,   -- same id as Kantina (e.g. lolas-silog)
   name        VARCHAR(80) NOT NULL,
   cost_center VARCHAR(20) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

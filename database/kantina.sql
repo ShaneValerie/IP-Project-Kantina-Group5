@@ -1,11 +1,11 @@
 -- ============================================================
 -- Kantina database (main app)
 -- Owns: users, orders and their status workflow, pickup slots,
---       tables and reservations, payments, notifications and the
---       integration layer (outbox, webhook log).
--- stalls / menu_items / announcements are a local CACHE of data
--- owned by Kantina CMS (content) and Kantina ERP (price, stock);
--- they are refreshed by webhooks and by the sync job.
+--       tables and reservations, payments, notifications, the menu
+--       content (stalls, menu names/descriptions/photos, announcements)
+--       and the integration layer (outbox, webhook log).
+-- Price, stock and availability in menu_items are a local copy of the
+-- Kantina ERP item master, refreshed by ERP webhooks and the ERP sync.
 -- Import into the database named in kantina/config (default: kantina).
 -- ============================================================
 SET NAMES utf8mb4;
@@ -47,13 +47,13 @@ CREATE TABLE users (
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------- Catalog cache (from CMS + ERP) ----------
+-- ---------- Catalog (content owned by Kantina, price/stock from ERP) ----------
 CREATE TABLE stalls (
   id                 VARCHAR(40)  NOT NULL PRIMARY KEY,
   name               VARCHAR(80)  NOT NULL,
   category           VARCHAR(40)  NOT NULL,
   description        TEXT         NULL,
-  photo_path         VARCHAR(255) NULL,          -- path inside the CMS media folder
+  photo_path         VARCHAR(255) NULL,          -- path inside kantina/assets/img/
   counter_label      VARCHAR(40)  NOT NULL,
   prep_minutes       SMALLINT     NOT NULL DEFAULT 10,
   opens_at           TIME         NOT NULL,
@@ -62,14 +62,14 @@ CREATE TABLE stalls (
   closed_note        VARCHAR(80)  NULL,
   sort_order         INT          NOT NULL DEFAULT 0,
   is_published       TINYINT(1)   NOT NULL DEFAULT 1,
-  synced_at          DATETIME     NULL
+  updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE menu_items (
   sku           VARCHAR(40)   NOT NULL PRIMARY KEY,
   stall_id      VARCHAR(40)   NOT NULL,
   type          ENUM('menu','addon') NOT NULL DEFAULT 'menu',
-  -- content (from CMS)
+  -- content (owned by Kantina, edited in the store console)
   section       VARCHAR(60)   NOT NULL DEFAULT 'Menu',
   name          VARCHAR(80)   NOT NULL,
   description   TEXT          NULL,
@@ -77,7 +77,7 @@ CREATE TABLE menu_items (
   addon_skus    VARCHAR(255)  NULL,
   sort_order    INT           NOT NULL DEFAULT 0,
   is_published  TINYINT(1)    NOT NULL DEFAULT 1,
-  cms_synced_at DATETIME      NULL,
+  content_updated_at DATETIME NULL,
   -- price and stock (from ERP)
   price         DECIMAL(10,2) NOT NULL DEFAULT 0,
   stock         INT           NOT NULL DEFAULT 0,
@@ -88,7 +88,7 @@ CREATE TABLE menu_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE announcements (
-  id         INT UNSIGNED NOT NULL PRIMARY KEY,   -- same id as in the CMS
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   title      VARCHAR(120) NOT NULL,
   body       TEXT         NULL,
   image_path VARCHAR(255) NULL,
@@ -96,7 +96,7 @@ CREATE TABLE announcements (
   starts_at  DATETIME     NULL,
   ends_at    DATETIME     NULL,
   sort_order INT          NOT NULL DEFAULT 0,
-  synced_at  DATETIME     NULL
+  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE favourites (
@@ -213,12 +213,12 @@ CREATE TABLE order_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------- Integration layer ----------
--- Transactional outbox: calls to the ERP/CMS are written here in the
+-- Transactional outbox: calls to the ERP/CRM are written here in the
 -- same DB transaction as the business change, then delivered (and
 -- retried with backoff) so nothing is lost when the ERP is offline.
 CREATE TABLE integration_outbox (
   id              BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  target          ENUM('erp','cms') NOT NULL,
+  target          ENUM('erp','crm') NOT NULL,
   event           VARCHAR(60)  NOT NULL,       -- e.g. erp.sales_order.create
   aggregate_ref   VARCHAR(40)  NOT NULL,       -- e.g. KTN-90214 (keeps calls for one order in order)
   payload         TEXT         NOT NULL,
@@ -232,10 +232,10 @@ CREATE TABLE integration_outbox (
   KEY idx_outbox_ref (aggregate_ref)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Incoming webhooks from the ERP / CMS (also used to ignore duplicates)
+-- Incoming webhooks from the ERP / CRM (also used to ignore duplicates)
 CREATE TABLE webhook_log (
   id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  source       ENUM('erp','cms','paymongo') NOT NULL,
+  source       ENUM('erp','crm','paymongo') NOT NULL,
   event        VARCHAR(60)  NULL,
   event_id     VARCHAR(64)  NULL,
   payload      TEXT         NULL,
@@ -293,15 +293,15 @@ INSERT INTO users (id, role, student_id, account, email, name, program, grad_yea
 
 INSERT INTO favourites (user_id, stall_id) VALUES (1, 'lolas-silog'), (1, 'kape-kanto');
 
--- Catalog cache: same data as the CMS and ERP seeds, so the app works
--- right after import. The first sync / webhook refreshes it.
-INSERT INTO stalls (id, name, category, description, photo_path, counter_label, prep_minutes, opens_at, closes_at, temporarily_closed, closed_note, sort_order, synced_at) VALUES
+-- Menu content. Prices and stock match the ERP seed, so the app works
+-- right after import; ERP webhooks and the ERP sync keep them current.
+INSERT INTO stalls (id, name, category, description, photo_path, counter_label, prep_minutes, opens_at, closes_at, temporarily_closed, closed_note, sort_order, updated_at) VALUES
 ('lolas-silog',   'Lola''s Silog', 'Rice meals', 'Classic Filipino silog plates cooked to order: garlic rice, a fried egg and your choice of ulam.', 'stalls/lolas-silog.jpg',   'Counter 2', 10, '07:00:00', '18:00:00', 0, NULL, 1, NOW()),
 ('kape-kanto',    'Kape Kanto',    'Drinks',     'Brewed and iced coffee, Spanish lattes and freshly baked merienda.',                                  'stalls/kape-kanto.jpg',    'Counter 1',  5, '07:00:00', '19:00:00', 0, NULL, 2, NOW()),
 ('noodle-bar',    'Noodle Bar',    'Noodles',    'Hot bowls of mami and lomi plus pancit for sharing.',                                                 'stalls/noodle-bar.jpg',    'Counter 3', 12, '14:00:00', '19:00:00', 0, NULL, 3, NOW()),
 ('grill-station', 'Grill Station', 'Snacks',     'Charcoal-grilled skewers and inasal, best with a cup of rice.',                                       'stalls/grill-station.jpg', 'Counter 4', 15, '13:00:00', '19:00:00', 0, NULL, 4, NOW());
 
-INSERT INTO menu_items (sku, stall_id, type, section, name, description, photo_path, addon_skus, sort_order, price, stock, track_stock, cms_synced_at, erp_synced_at) VALUES
+INSERT INTO menu_items (sku, stall_id, type, section, name, description, photo_path, addon_skus, sort_order, price, stock, track_stock, content_updated_at, erp_synced_at) VALUES
 ('LS-TAPSILOG',   'lolas-silog',  'menu',  'Silog',   'Tapsilog',               'Marinated beef tapa, garlic fried rice and a sunny-side-up egg. Served with atchara on the side.', 'food/tapsilog.jpg',  'LS-ADD-RICE,LS-ADD-EGG', 1, 85, 24, 1, NOW(), NOW()),
 ('LS-LONGSILOG',  'lolas-silog',  'menu',  'Silog',   'Longsilog',              'Sweet pork longganisa, garlic fried rice and egg.',                                                 'food/longsilog.jpg', 'LS-ADD-RICE,LS-ADD-EGG', 2, 75, 11, 1, NOW(), NOW()),
 ('LS-BANGSILOG',  'lolas-silog',  'menu',  'Silog',   'Bangsilog',              'Crispy daing na bangus (milkfish), garlic fried rice and egg.',                                     'food/bangsilog.jpg', 'LS-ADD-RICE,LS-ADD-EGG', 3, 90,  0, 1, NOW(), NOW()),
@@ -328,7 +328,7 @@ INSERT INTO menu_items (sku, stall_id, type, section, name, description, photo_p
 ('GS-INASAL',     'grill-station','menu',  'Meals',   'Chicken inasal with rice','Bacolod-style grilled chicken leg quarter with rice.',                                             NULL,                 'GS-ADD-RICE',            4, 99, 12, 1, NOW(), NOW()),
 ('GS-ADD-RICE',   'grill-station','addon', 'Add-ons', 'Extra rice',              'One more cup of rice.',                                                                            NULL,                 NULL,                     5, 15,  0, 0, NOW(), NOW());
 
-INSERT INTO announcements (id, title, body, image_path, link_url, starts_at, ends_at, sort_order, synced_at) VALUES
+INSERT INTO announcements (id, title, body, image_path, link_url, starts_at, ends_at, sort_order, updated_at) VALUES
 (1, 'Skip the lunch rush',           'Pre-order before 11 AM and pick a pickup slot — your tray will be waiting at the counter.', NULL, 'home.html',    NULL, NULL, 1, NOW()),
 (2, 'Reserve a table for your group','Tables are held for 10 minutes past your start time, then released for others.',          NULL, 'reserve.html', NULL, NULL, 2, NOW());
 
