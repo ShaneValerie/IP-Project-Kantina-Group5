@@ -89,6 +89,45 @@ Starts Kantina on http://localhost:8000, the ERP on :8001 and the CMS on :8002 u
 
 ---
 
+## Documentation
+
+| | |
+|---|---|
+| **API reference** (every endpoint with example responses) | [`docs/API.md`](docs/API.md) |
+| **Interactive API docs** (Swagger UI, try requests) | `kantina/api/docs/` on any running server |
+| **Architecture**: system map, integration flows, tech stack | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+
+---
+
+## Deployment (school server)
+
+Each app is self-contained, so the cleanest layout is **one subdomain per system**:
+
+| Subdomain (example) | Upload the contents of | Database |
+|---|---|---|
+| `kantina.<domain>` | `kantina/` | `kantina` |
+| `kantina-erp.<domain>` | `erp/` | `kantina_erp` |
+| `kantina-cms.<domain>` | `cms/` | `kantina_cms` |
+
+Only one subdomain? Upload the three folders side by side (`/kantina`, `/erp`, `/cms`). Only one database? Import all three SQL files into it: the ERP and CMS tables have their own prefixes.
+
+1. **Create the databases** in the hosting panel and import, with phpMyAdmin → *Import*:
+   `database/kantina.sql`, `database/kantina_erp.sql`, `database/kantina_cms.sql`.
+   (Large file? `kantina_erp.sql` is about 650 KB. If the upload limit is lower, ask for it to be raised or import it from a terminal.)
+2. **Generate the config files** on your laptop. The keys and secrets have to match across the three apps:
+   ```bash
+   php tools/make-config.php \
+     --kantina-url=https://kantina.<domain> --erp-url=https://kantina-erp.<domain> --cms-url=https://kantina-cms.<domain> \
+     --db-host=localhost --db-user=<db user> --db-pass=<db password>
+   ```
+   This writes `config.local.php` into `kantina/`, `erp/` and `cms/`. Add `--brevo-key=… --from-email=…` to send real emails.
+3. **Upload** each folder's contents, including the hidden `.htaccess` files and `config.local.php`.
+4. **Check** `…/api/health` on Kantina and `…/api/v1/health` on the ERP and CMS. Each should say `"ok": true`.
+5. **Sync the catalog** so photo links use the live CMS address: sign in to the store console and open `kantina/admin/integrations.html` → *Sync catalog now*.
+6. **Smoke test** from a laptop: `php tests/smoke.php https://kantina.<domain> https://kantina-erp.<domain> https://kantina-cms.<domain>`
+
+---
+
 ## Team workflow
 
 Tasks are tracked as **GitHub Issues** with a milestone per day (Day 1 – Nov 27 … Day 4 – Nov 30).

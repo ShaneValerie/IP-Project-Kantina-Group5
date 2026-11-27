@@ -12,7 +12,7 @@ if (preg_match('#/config(\.local|\.sample)?\.php$|\.sql$|/lib/|/src/#', $path)) 
     echo 'Forbidden';
     return true;
 }
-if (preg_match('#^/api(/|$)#', $path) && !is_file($root . $path)) {
+if (preg_match('#^/api(/|$)#', $path) && !is_file($root . $path) && !(is_dir($root . $path) && $path !== '/api' && $path !== '/api/')) {
     $_SERVER['SCRIPT_NAME'] = '/api/index.php';
     require $root . '/api/index.php';
     return true;
