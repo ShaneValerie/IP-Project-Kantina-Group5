@@ -1232,3 +1232,18 @@ a.order-card:hover{ border-color:var(--green); }
 /* ---------- Sign-in: error + demo hint ---------- */
 .signin-error{ margin:4px 0 0; padding:10px 12px; border-radius:10px; background:#FDECEA; color:#B42318; font-size:13.5px; }
 .signin-demo{ margin-top:4px; padding-bottom:0; font-size:12.5px; }
+
+/* ---------- Catalog pages (home, stall, item) loaded from the API ---------- */
+button.chip, button.segtab{ font:inherit; cursor:pointer; }
+.page-home .open-badge.closed{ background:var(--border-soft); color:var(--ink-soft); }
+.load-msg{ margin:0; padding:18px 0; font-size:14px; color:var(--ink-soft); }
+.load-msg a{ color:var(--green); font-weight:600; }
+.page-home .reserve-banner.announce{ margin-bottom:12px; }
+.page-item .item-photo svg{ width:46px; height:46px; }
+.page-item .addon-row.unavailable{ opacity:0.5; cursor:default; }
+.page-item #add-btn:disabled{ opacity:0.6; cursor:default; }
+.cart-bar[hidden], .order-sidebar[hidden], .flow-head-badge[hidden]{ display:none; }
+@media (min-width:860px){
+  /* 4 cards per row: stack the status badge under the name so long texts like "Opens tomorrow 7 AM" fit */
+  .page-home .stall-info{ flex-direction:column; align-items:flex-start; gap:8px; }
+}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tapsilog — Kantina</title>
+<title>Menu item — Kantina</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">
 </head>
@@ -30,40 +30,33 @@
   </div>
   <header class="flow-head">
   <div class="flow-head-top">
-    <a class="icon-btn" href="stall.html" aria-label="Back to Lola&rsquo;s Silog"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    <a class="icon-btn" href="home.html" id="back-link" aria-label="Back to the stall"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
   <div class="flow-head-text">
-    <span class="flow-head-meta">Lola&rsquo;s Silog</span>
-    <h1>Tapsilog</h1>
+    <span class="flow-head-meta" id="item-stall"></span>
+    <h1 id="item-name">Loading…</h1>
     <p>Make it your way</p>
   </div>
   </header>
 
   <div class="scroll">
-    <div class="item-layout">
-      <div class="item-photo">
-        <img class="photo-img" src="assets/img/food/tapsilog.jpg" alt="Tapsilog with garlic fried rice">
-      </div>
+    <div class="item-layout" id="item-layout">
+      <div class="item-photo" id="item-photo"></div>
       <div class="item-body">
         <div class="item-title-row">
-          <h2>Tapsilog</h2>
-          <p class="item-price">₱85</p>
+          <h2 id="item-title"></h2>
+          <p class="item-price" id="item-price"></p>
         </div>
-        <p class="item-desc">Marinated beef tapa, garlic fried rice, and a sunny-side-up egg. Served with atchara on the side.</p>
+        <p class="item-desc" id="item-desc"></p>
 
-        <h3 class="section-label">Add-ons</h3>
-        <label class="addon-row">
-          <input type="checkbox" data-price="15">
-          <div class="addon-text"><strong>Extra rice</strong><span>+₱15</span></div>
-        </label>
-        <label class="addon-row">
-          <input type="checkbox" data-price="12">
-          <div class="addon-text"><strong>Fried egg</strong><span>+₱12</span></div>
-        </label>
+        <div id="addon-section" hidden>
+          <h3 class="section-label">Add-ons</h3>
+          <div id="addon-list"></div>
+        </div>
 
         <div class="note-field">
           <label for="note" class="section-label">Note to kitchen</label>
-          <textarea id="note" placeholder="e.g. no onions, sauce on the side"></textarea>
+          <textarea id="note" maxlength="200" placeholder="e.g. no onions, sauce on the side"></textarea>
         </div>
 
         <div class="item-footer">
@@ -72,28 +65,101 @@
             <span id="qty" aria-live="polite">1</span>
             <button type="button" id="qty-plus" aria-label="One more">+</button>
           </div>
-          <a class="btn btn-primary" style="flex:1;" href="stall.html" id="add-btn">Add · ₱85</a>
+          <button class="btn btn-primary" style="flex:1;" type="button" id="add-btn" disabled>Add</button>
         </div>
       </div>
     </div>
   </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
+<script src="js/api.js"></script>
+<script src="app.js"></script>
 <script>
-// Add-ons and quantity update the price on the Add button.
+// Item detail: GET /menu-items/{sku}. Add-ons and quantity update the price on
+// the Add button; Add puts the item in the tray (Cart) and goes back to the stall.
 (function () {
-  const BASE_PRICE = 85;
+  Auth.requireStudent();
+
+  const PLACEHOLDER = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 3v8a2.5 2.5 0 0 0 2.5 2.5V21M4 3v5M6.5 3v5M4 6.5h2.5M15 3c-1.6 1-1.6 3.5-1.6 5.2 0 1.4.7 2.3 1.6 2.6V21" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  let item = null;
+  let BASE_PRICE = 0;
   let qty = 1;
+  let canOrder = false;
   const addBtn = document.getElementById('add-btn');
   const qtyEl = document.getElementById('qty');
-  function update() {
-    const extras = Array.from(document.querySelectorAll('.addon-row input:checked'))
-      .reduce((sum, el) => sum + Number(el.dataset.price), 0);
-    qtyEl.textContent = qty;
-    addBtn.textContent = 'Add \u00b7 \u20B1' + (BASE_PRICE + extras) * qty;
+
+  function checkedAddons() {
+    return Array.from(document.querySelectorAll('#addon-list input:checked'))
+      .map(el => ({ sku: el.dataset.sku, name: el.dataset.name, price: Number(el.dataset.price) }));
   }
-  document.querySelectorAll('.addon-row input').forEach(el => el.addEventListener('change', update));
+
+  function update() {
+    qtyEl.textContent = qty;
+    if (!canOrder) return;
+    const extras = checkedAddons().reduce((sum, a) => sum + a.price, 0);
+    addBtn.textContent = 'Add \u00b7 ' + Fmt.peso((BASE_PRICE + extras) * qty);
+  }
+
+  document.getElementById('addon-list').addEventListener('change', update);
   document.getElementById('qty-minus').addEventListener('click', () => { if (qty > 1) { qty--; update(); } });
   document.getElementById('qty-plus').addEventListener('click', () => { if (qty < 10) { qty++; update(); } });
+
+  addBtn.addEventListener('click', () => {
+    if (!canOrder) return;
+    Cart.add({
+      sku: item.sku, name: item.name, price: item.price, qty: qty,
+      addons: checkedAddons(), note: document.getElementById('note').value.trim(),
+      stall: { id: item.stall.id, name: item.stall.name }, photo_url: item.photo_url
+    });
+    addBtn.disabled = true;
+    showToast('Added to tray');
+    setTimeout(() => { location.href = 'stall.html?id=' + encodeURIComponent(item.stall.id); }, 900);
+  });
+
+  function showError(message) {
+    document.getElementById('item-name').textContent = 'Item not found';
+    document.getElementById('item-layout').innerHTML = `<p class="load-msg">${escapeHtml(message)} <a href="home.html">Back to stalls</a></p>`;
+  }
+
+  const sku = qs('sku');
+  if (!sku) { showError('No menu item was chosen.'); return; }
+
+  Api.get('/menu-items/' + encodeURIComponent(sku))
+    .then(res => {
+      item = res.item;
+      BASE_PRICE = Number(item.price);
+      document.title = item.name + ' \u2014 Kantina';
+      document.getElementById('item-stall').textContent = item.stall.name;
+      document.getElementById('item-name').textContent = item.name;
+      document.getElementById('item-title').textContent = item.name;
+      document.getElementById('item-price').textContent = Fmt.peso(item.price);
+      document.getElementById('item-desc').textContent = item.description || '';
+      const back = document.getElementById('back-link');
+      back.href = 'stall.html?id=' + encodeURIComponent(item.stall.id);
+      back.setAttribute('aria-label', 'Back to ' + item.stall.name);
+      document.getElementById('item-photo').innerHTML = item.photo_url
+        ? `<img class="photo-img" src="${escapeHtml(item.photo_url)}" alt="${escapeHtml(item.name)}">`
+        : PLACEHOLDER;
+
+      if (res.addons.length) {
+        document.getElementById('addon-section').hidden = false;
+        document.getElementById('addon-list').innerHTML = res.addons.map(a => `
+          <label class="addon-row${a.available ? '' : ' unavailable'}">
+            <input type="checkbox" data-sku="${escapeHtml(a.sku)}" data-name="${escapeHtml(a.name)}" data-price="${Number(a.price)}"${a.available ? '' : ' disabled'}>
+            <div class="addon-text"><strong>${escapeHtml(a.name)}</strong><span>${a.available ? '+' + Fmt.peso(a.price) : 'Not available'}</span></div>
+          </label>`).join('');
+      }
+
+      canOrder = item.available && !item.sold_out && item.stall.accepts_orders;
+      addBtn.disabled = !canOrder;
+      if (!canOrder) {
+        addBtn.textContent = item.sold_out ? 'Sold out today'
+          : !item.stall.accepts_orders ? 'Stall isn\u2019t taking orders' : 'Not available today';
+      }
+      update();
+    })
+    .catch(err => showError(err.message));
 })();
 </script>
 </body>
