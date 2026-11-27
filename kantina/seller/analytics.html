@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lola's Silog · Analytics</title>
+<title>Kantina · Analytics</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="page-seller-app page-seller-analytics">
@@ -31,7 +31,7 @@
       </nav>
       <div class="sidebar-footer">
         <button class="nav-item" data-panel="settings">Settings</button>
-        <a class="nav-item" href="login.html">Sign out</a>
+        <a class="nav-item" href="login.html" id="sign-out">Sign out</a>
       </div>
     </aside>
 
@@ -54,6 +54,7 @@
 
       <h2 class="section-title">Revenue by day</h2>
       <div class="chart-frame" id="chart-frame" role="img" aria-label="Revenue by day bar chart"></div>
+      <p class="chart-caption" id="chart-caption">Source: Kantina ERP sales ledger</p>
 
       <div class="summary-row">
         <div class="summary-card">
@@ -74,69 +75,81 @@
 
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="../js/api.js"></script>
 <script>
 (function () {
 
-  const DATASETS = {
-    "7": {
-      revenue: 18420,
-      orders: 214,
-      avgTicket: 86,
-      bars: [49, 77, 60, 100, 87, 45, 69],
-      topItems: [
-        { name: "Tapsilog", value: 88 },
-        { name: "Longsilog", value: 54 },
-      ],
-      peakHours: [
-        { name: "11:30\u201312:30", value: "41%" },
-        { name: "17:00\u201318:00", value: "22%" },
-      ],
-    },
-    "30": {
-      revenue: 78650,
-      orders: 918,
-      avgTicket: 86,
-      bars: [52, 68, 74, 60, 83, 49, 71, 58, 90, 65, 47, 76, 69, 55, 88,
-             62, 73, 50, 80, 66, 44, 78, 60, 92, 57, 70, 63, 85, 54, 72],
-      topItems: [
-        { name: "Tapsilog", value: 372 },
-        { name: "Longsilog", value: 231 },
-      ],
-      peakHours: [
-        { name: "11:30\u201312:30", value: "39%" },
-        { name: "17:00\u201318:00", value: "24%" },
-      ],
-    },
-  };
-
-  const pesos = (n) => `\u20B1${n.toLocaleString()}`;
+  const user = Auth.requireStaff();
 
   const chartFrame = document.getElementById("chart-frame");
+  const chartCaption = document.getElementById("chart-caption");
   const topItemsEl = document.getElementById("top-items");
   const peakHoursEl = document.getElementById("peak-hours");
 
-  function render(range) {
-    const data = DATASETS[range];
+  let currentRange = "7";
 
-    document.getElementById("stat-revenue").textContent = pesos(data.revenue);
+  // ---------- header ----------
+  if (user.stall) document.title = `${user.stall.name} · Analytics`;
+  document.getElementById("sign-out").addEventListener("click", (e) => {
+    e.preventDefault();
+    Auth.logout();
+  });
+
+  // ---------- toast ----------
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
+  function showToast(message) {
+    toast.textContent = message;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 5000);
+  }
+
+  // ---------- loading ----------
+  async function load(range) {
+    currentRange = range;
+    try {
+      const data = await Api.get("/seller/analytics", { range });
+      if (range !== currentRange) return;   // the other range was clicked while this one loaded
+      render(data);
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  // ---------- rendering ----------
+  function render(data) {
+    document.getElementById("stat-revenue").textContent = Fmt.peso(data.revenue);
     document.getElementById("stat-orders").textContent = data.orders.toLocaleString();
-    document.getElementById("stat-avg").textContent = pesos(data.avgTicket);
+    document.getElementById("stat-avg").textContent = Fmt.peso(data.avg_ticket);
 
+    // Bars: the best day is 100% tall, the others are a share of it.
+    const max = Math.max(0, ...data.by_day.map(d => d.revenue));
     chartFrame.innerHTML = "";
-    data.bars.forEach(pct => {
+    data.by_day.forEach(day => {
       const bar = document.createElement("div");
       bar.className = "bar";
-      bar.style.height = `${pct}%`;
+      bar.style.height = max > 0 ? `${(day.revenue / max) * 100}%` : "0%";
+      bar.title = `${day.label} ${day.date}: ${Fmt.peso(day.revenue)} · ${day.orders} orders`;
       chartFrame.appendChild(bar);
     });
+    chartFrame.setAttribute("aria-label",
+      `Revenue by day, ${data.from} to ${data.to}. Highest day ${Fmt.peso(max)}.`);
+    chartCaption.textContent = `${data.from} to ${data.to} · Source: Kantina ERP sales ledger`;
 
-    topItemsEl.innerHTML = data.topItems.map(row => `
-      <div class="row"><span class="name">${row.name}</span><span class="value">${row.value}</span></div>
-    `).join("");
+    topItemsEl.innerHTML = listRows(data.top_items, row => [row.name, `${row.qty} sold`]);
+    peakHoursEl.innerHTML = listRows(data.peak_hours, row => [row.label, `${row.share}%`]);
+  }
 
-    peakHoursEl.innerHTML = data.peakHours.map(row => `
-      <div class="row"><span class="name">${row.name}</span><span class="value">${row.value}</span></div>
-    `).join("");
+  /** Rows for the Top items / Peak hours cards. Text from the API is escaped. */
+  function listRows(rows, toPair) {
+    if (!rows.length) return `<div class="row"><span class="name">No sales yet</span></div>`;
+    return rows.map(row => {
+      const [name, value] = toPair(row);
+      return `<div class="row"><span class="name">${escapeHtml(name)}</span><span class="value">${escapeHtml(value)}</span></div>`;
+    }).join("");
   }
 
   document.getElementById("range-toggle").addEventListener("click", (e) => {
@@ -145,7 +158,7 @@
 
     document.querySelectorAll("#range-toggle button").forEach(b => b.classList.remove("is-active"));
     btn.classList.add("is-active");
-    render(btn.dataset.range);
+    load(btn.dataset.range);
   });
 
   const navList = document.getElementById("nav-list");
@@ -164,7 +177,7 @@
     });
   });
 
-  render("7");
+  load("7");
 
 })();
 </script>
