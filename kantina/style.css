@@ -1237,7 +1237,7 @@ a.order-card:hover{ border-color:var(--green); }
 .signin-demo{ margin-top:4px; padding-bottom:0; font-size:12.5px; }
 
 /* ---------- Catalog pages (home, stall, item) loaded from the API ---------- */
-button.chip, button.segtab{ font-family:inherit; cursor:pointer; }
+button.chip, button.segtab{ font:inherit; cursor:pointer; }
 .page-home .open-badge.closed{ background:var(--border-soft); color:var(--ink-soft); }
 .load-msg{ margin:0; padding:18px 0; font-size:14px; color:var(--ink-soft); }
 .load-msg a{ color:var(--green); font-weight:600; }
@@ -1250,6 +1250,3 @@ button.chip, button.segtab{ font-family:inherit; cursor:pointer; }
   /* 4 cards per row: stack the status badge under the name so long texts like "Opens tomorrow 7 AM" fit */
   .page-home .stall-info{ flex-direction:column; align-items:flex-start; gap:8px; }
 }
-.order-sidebar .tray-stall{ font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin:10px 0 4px; }
-.order-sidebar .tray-stall:first-of-type{ margin-top:0; }
-.page-item .item-stock{ margin:6px 0 0; font-size:13px; font-weight:600; color:#B54708; }
