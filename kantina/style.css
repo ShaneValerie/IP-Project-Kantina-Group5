@@ -955,7 +955,7 @@ button, input, textarea{ font-family:inherit; }
 
 /* payment: amount due first */
 .pay-amount{ text-align:center; padding:0 0 20px; }
-.pay-amount img{ height:64px; width:auto; display:block; margin:0 auto 6px; }
+.pay-amount-brand{ font-size:18px; font-weight:700; color:var(--ink); margin:0 0 8px; }
 .pay-amount-label{ font-size:12.5px; font-weight:600; color:var(--ink-soft); }
 .pay-amount-value{ font-size:32px; font-weight:700; letter-spacing:-0.02em; margin:2px 0; }
 .pay-amount-ref{ font-size:12px; color:var(--ink-faint); }
