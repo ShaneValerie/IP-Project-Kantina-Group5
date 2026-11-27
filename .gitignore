@@ -1,0 +1,14 @@
+# Local configuration (database passwords, API keys, secrets)
+config.local.php
+
+# Runtime files
+*.log
+erp/media/uploads/
+cms/media/uploads/
+
+# Editor / OS files
+.history/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
