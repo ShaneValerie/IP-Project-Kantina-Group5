@@ -1,14 +1,19 @@
 <?php
 /**
- * Shared setup for the CMS admin pages: library, session login, helpers.
+ * Shared setup for the CRM admin pages: library, session login, helpers.
+ * New admin page? Start it with:
+ *   require __DIR__ . '/_init.php';
+ *   require_login();
+ *   layout_start('Customers', 'customers');   ...   layout_end();
+ * and add it to the $nav list in _layout.php. Every POST form needs
+ * csrf_field() inside the form and csrf_check() in the handler.
  */
 require_once __DIR__ . '/../api/lib/bootstrap.php';
-Config::load(dirname(__DIR__), 'cms');
+Config::load(dirname(__DIR__), 'crm');
 require_once __DIR__ . '/../api/src/Events.php';
-require_once __DIR__ . '/../api/src/Content.php';
 require_once __DIR__ . '/_layout.php';
 
-session_name('kantina_cms_admin');
+session_name('kantina_crm_admin');
 session_start();
 
 function h($value): string
@@ -80,32 +85,4 @@ function attempt(callable $fn, string $success): void
     } catch (Throwable $e) {
         flash('error', Config::get('debug') ? $e->getMessage() : 'Something went wrong.');
     }
-}
-
-function stall_names(): array
-{
-    $names = [];
-    foreach (Db::all('SELECT id, name FROM cms_stalls ORDER BY sort_order, name') as $s) {
-        $names[$s['id']] = $s['name'];
-    }
-    return $names;
-}
-
-/** <select> options for choosing a photo from the media library. */
-function media_options(?string $current): string
-{
-    $html = '<option value="">— No photo —</option>';
-    foreach (Content::mediaFiles() as $path) {
-        $html .= '<option value="' . h($path) . '"' . ($path === $current ? ' selected' : '') . '>' . h($path) . '</option>';
-    }
-    return $html;
-}
-
-/** Tell Kantina about a change, and say in the flash message whether it heard us. */
-function publish(string $type, string $id, string $what, string $action = 'updated'): void
-{
-    $ok = Events::published($type, $id, $action);
-    flash($ok ? 'ok' : 'error', $ok
-        ? "$what saved and published — Kantina has been notified."
-        : "$what saved, but Kantina could not be notified (it may be offline). Resend it from the Webhooks page.");
 }

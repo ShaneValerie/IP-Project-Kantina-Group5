@@ -4,7 +4,6 @@ config.local.php
 # Runtime files
 *.log
 erp/media/uploads/
-cms/media/uploads/
 
 # Editor / OS files
 .history/

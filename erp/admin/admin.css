@@ -1,6 +1,6 @@
-/* Admin pages for Kantina ERP / Kantina CMS (same file, different --accent) */
+/* Admin pages for Kantina ERP / Kantina CRM (same file, different --accent) */
 :root{
-  --accent:#1F4E8C;          /* ERP blue (the CMS uses purple) */
+  --accent:#1F4E8C;          /* ERP blue (the CRM uses purple) */
   --accent-deep:#163A69;
   --accent-tint:#E6EEF8;
   --ink:#16202B;

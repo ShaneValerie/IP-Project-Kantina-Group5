@@ -9,8 +9,8 @@
  *   php database/install.php --only=erp              (re-import just one app)
  *
  * Options: --host (127.0.0.1) --port (3306) --user (root) --password ('')
- *          --kantina-db (kantina) --erp-db (kantina_erp) --cms-db (kantina_cms)
- *          --single-db=<name>  --only=kantina,erp,cms  --yes (skip the question)
+ *          --kantina-db (kantina) --erp-db (kantina_erp) --crm-db (kantina_crm)
+ *          --single-db=<name>  --only=kantina,erp,crm  --yes (skip the question)
  *
  * WARNING: re-importing drops and recreates the Kantina tables (only ours —
  * other databases on your MySQL server are not touched).
@@ -24,7 +24,7 @@ if (PHP_SAPI !== 'cli') {
     exit("Run this from the command line: php database/install.php\n");
 }
 
-$opts = getopt('', ['host:', 'port:', 'user:', 'password::', 'kantina-db:', 'erp-db:', 'cms-db:', 'single-db:', 'only:', 'yes', 'help']);
+$opts = getopt('', ['host:', 'port:', 'user:', 'password::', 'kantina-db:', 'erp-db:', 'crm-db:', 'single-db:', 'only:', 'yes', 'help']);
 if (isset($opts['help'])) {
     echo file_get_contents(__FILE__, false, null, 0, 1200);
     exit(0);
@@ -38,12 +38,12 @@ $single = $opts['single-db'] ?? null;
 $dbs = [
     'kantina' => $single ?? ($opts['kantina-db'] ?? 'kantina'),
     'erp'     => $single ?? ($opts['erp-db'] ?? 'kantina_erp'),
-    'cms'     => $single ?? ($opts['cms-db'] ?? 'kantina_cms'),
+    'crm'     => $single ?? ($opts['crm-db'] ?? 'kantina_crm'),
 ];
 $files = [
     'kantina' => __DIR__ . '/kantina.sql',
     'erp'     => __DIR__ . '/kantina_erp.sql',
-    'cms'     => __DIR__ . '/kantina_cms.sql',
+    'crm'     => __DIR__ . '/kantina_crm.sql',
 ];
 $only = isset($opts['only']) ? array_map('trim', explode(',', $opts['only'])) : array_keys($files);
 
@@ -51,7 +51,7 @@ echo "Kantina installer\n";
 echo "MySQL: {$user}@{$host}:{$port}\n";
 foreach ($only as $app) {
     if (!isset($files[$app])) {
-        exit("Unknown app '$app' (use kantina, erp or cms)\n");
+        exit("Unknown app '$app' (use kantina, erp or crm)\n");
     }
     echo "  - {$app}: database `{$dbs[$app]}`\n";
 }
@@ -102,8 +102,8 @@ foreach ($only as $app) {
 echo "\nDone. Demo logins (password for all: kantina123)\n";
 echo "  Student app ........ 21-0942\n";
 echo "  Store console ...... stall-01 (Lola's Silog) … stall-04 (Grill Station)\n";
-echo "  ERP / CMS admin .... admin\n";
+echo "  ERP / CRM admin .... admin\n";
 if ($port !== 3306 || $user !== 'root' || $pass !== '' || $single) {
     echo "\nYour MySQL settings differ from the defaults — put them in a config.local.php in each app\n";
-    echo "(copy kantina/config.sample.php, erp/config.sample.php, cms/config.sample.php).\n";
+    echo "(copy kantina/config.sample.php, erp/config.sample.php, crm/config.sample.php).\n";
 }

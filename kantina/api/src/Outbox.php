@@ -1,6 +1,6 @@
 <?php
 /**
- * Transactional outbox for calls to Kantina ERP.
+ * Transactional outbox for calls to Kantina ERP (and the CRM).
  *
  * Problem: an order is saved in Kantina's database, then the ERP must be
  * told. If the ERP is offline at that moment, the call would be lost.
@@ -11,6 +11,10 @@
  *   - again later with backoff (30 s, 2 min, 10 min, 30 min …) if it failed,
  *   - in order: messages for one order (create → pay → cancel) never overtake each other.
  * The ERP endpoints are idempotent, so a message delivered twice is harmless.
+ *
+ * The event name says where a message goes: "erp.sales_order.create" → ERP,
+ * "crm.…" → CRM. Each event needs a case in deliver(). Messages with the same
+ * $ref are delivered in order, so give CRM messages their own refs.
  */
 final class Outbox
 {
@@ -26,7 +30,7 @@ final class Outbox
     public static function enqueue(string $event, string $ref, array $payload = []): void
     {
         Db::insert('integration_outbox', [
-            'target' => 'erp',
+            'target' => strstr($event, '.', true) ?: 'erp',
             'event' => $event,
             'aggregate_ref' => $ref,
             'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION),

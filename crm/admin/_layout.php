@@ -1,15 +1,12 @@
 <?php
-/** Page frame for the CMS admin pages. */
+/** Page frame for the CRM admin pages. */
 
 function layout_start(string $title, string $active): void
 {
     $admin = $_SESSION['admin'] ?? null;
     $nav = [
         'index' => ['index.php', 'Dashboard'],
-        'stalls' => ['stalls.php', 'Stalls'],
-        'menu' => ['menu.php', 'Menu content'],
-        'announcements' => ['announcements.php', 'Announcements'],
-        'media' => ['media.php', 'Media library'],
+        // Add CRM pages here, e.g. 'customers' => ['customers.php', 'Customers'],
         'webhooks' => ['webhooks.php', 'Webhooks to Kantina'],
     ];
     ?><!DOCTYPE html>
@@ -17,13 +14,13 @@ function layout_start(string $title, string $active): void
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= h($title) ?> · Kantina CMS</title>
+<title><?= h($title) ?> · Kantina CRM</title>
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 <div class="shell">
-  <nav class="side" aria-label="CMS">
-    <div class="brand">Kantina CMS<small>Canteen content</small></div>
+  <nav class="side" aria-label="CRM">
+    <div class="brand">Kantina CRM<small>Customers &amp; loyalty</small></div>
     <?php foreach ($nav as $key => [$href, $label]): ?>
       <a href="<?= $href ?>"<?= $key === $active ? ' class="active" aria-current="page"' : '' ?>><?= h($label) ?></a>
     <?php endforeach; ?>

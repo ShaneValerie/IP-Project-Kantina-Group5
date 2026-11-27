@@ -16,7 +16,7 @@ return [
     'urls' => [
         'kantina' => 'https://kantina.example.edu.ph',
         'erp'     => 'https://kantina-erp.example.edu.ph',
-        'cms'     => 'https://kantina-cms.example.edu.ph',
+        'crm'     => 'https://kantina-crm.example.edu.ph',
     ],
     'api_keys' => ['kantina' => 'paste-the-erp-api-key-here'],
     'webhook_secret' => 'paste-the-erp-webhook-secret-here',

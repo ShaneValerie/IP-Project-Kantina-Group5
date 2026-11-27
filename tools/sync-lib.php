@@ -1,6 +1,6 @@
 <?php
 /**
- * Copies the shared library from kantina/api/lib to erp/api/lib and cms/api/lib.
+ * Copies the shared library from kantina/api/lib to erp/api/lib and crm/api/lib.
  * Each app keeps its own copy so it can be deployed on its own server.
  *
  *   php tools/sync-lib.php          copy
@@ -11,7 +11,7 @@ $source = "$root/kantina/api/lib";
 $check = in_array('--check', $argv, true);
 $different = 0;
 
-foreach (['erp', 'cms'] as $app) {
+foreach (['erp', 'crm'] as $app) {
     $target = "$root/$app/api/lib";
     if (!is_dir($target) && !$check) {
         mkdir($target, 0777, true);

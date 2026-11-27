@@ -4,7 +4,7 @@ require __DIR__ . '/_init.php';
 $error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    $user = Db::one('SELECT * FROM cms_admins WHERE username = ?', [trim($_POST['username'] ?? '')]);
+    $user = Db::one('SELECT * FROM crm_admins WHERE username = ?', [trim($_POST['username'] ?? '')]);
     if ($user && password_verify((string) ($_POST['password'] ?? ''), $user['password_hash'])) {
         session_regenerate_id(true);
         $_SESSION['admin'] = ['id' => (int) $user['id'], 'username' => $user['username'], 'name' => $user['name']];
@@ -17,14 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in · Kantina CMS</title>
+<title>Sign in · Kantina CRM</title>
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 <div class="login">
   <form class="card" method="post">
-    <div class="brand-big">Kantina CMS</div>
-    <p class="muted" style="margin-top:0;">Stall profiles, menus, photos and announcements.</p>
+    <div class="brand-big">Kantina CRM</div>
+    <p class="muted" style="margin-top:0;">Customers, loyalty and feedback.</p>
     <?php if ($error): ?><div class="flash error" role="alert"><?= h($error) ?></div><?php endif; ?>
     <?= csrf_field() ?>
     <div class="field">
