@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lola's Silog · Tables</title>
+<title>Kantina · Tables</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="page-seller-app page-seller-tables">
@@ -12,7 +12,10 @@
 
   <header class="app-topbar">
     <h1>Tables</h1>
-    <span class="context-label">Today · Lawrence Bunzel Canteen</span>
+    <label class="context-label">
+      <select id="day-picker" aria-label="Day"></select>
+      <span>· Lawrence Bunzel Canteen</span>
+    </label>
   </header>
 
   <div class="app-body">
@@ -28,7 +31,7 @@
       </nav>
       <div class="sidebar-footer">
         <button class="nav-item" data-panel="settings">Settings</button>
-        <a class="nav-item" href="login.html">Sign out</a>
+        <a class="nav-item" href="login.html" id="sign-out">Sign out</a>
       </div>
     </aside>
 
@@ -61,11 +64,12 @@
           <div class="schedule-body" id="schedule-body"></div>
         </div>
 
-        <p class="schedule-hint">Click a table on the map to jump to its row. Click a free slot to block it for cleaning or an event.</p>
+        <p class="schedule-hint">Click a table on the map to jump to its row. Click a free slot to block it for cleaning, or a blocked slot to free it. Updates every 15 seconds.</p>
       </section>
 
       <div class="no-shows-card">
-        <h2 id="no-shows-title">No-shows today · 2</h2>
+        <h2 id="no-shows-title">No-shows</h2>
+        <ul class="no-shows-list" id="no-shows-list"></ul>
         <p>Auto-released after 10 min. Repeat no-shows flagged on the student profile.</p>
       </div>
     </main>
@@ -76,49 +80,112 @@
 
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="../js/api.js"></script>
 <script>
 (function () {
 
-  const timeSlots = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30"];
-  const COLS = 4;
-  const ROWS = 10;
+  const user = Auth.requireStaff();
+  const REFRESH_MS = 15000;
 
-  // ── Temporary data: 40 tables, T-01 … T-40, laid out row by row ──
-  const SAMPLE = {
-    "T-04": ["free", "held", "booked", "free", "free", "block"],
-    "T-12": ["free", "free", "Ana R.", "Ana R.", "free", "free"],
-    "T-15": ["booked", "free", "free", "booked", "free", "free"],
-    "T-02": ["booked", "booked", "free", "free", "free", "free"],
-    "T-07": ["free", "free", "booked", "booked", "free", "free"],
-    "T-09": ["block", "block", "free", "free", "free", "free"],
-    "T-18": ["free", "Leo M.", "Leo M.", "free", "free", "free"],
-    "T-21": ["free", "free", "booked", "free", "booked", "free"],
-    "T-23": ["held", "free", "free", "free", "free", "free"],
-    "T-26": ["free", "free", "booked", "booked", "booked", "free"],
-    "T-30": ["free", "free", "free", "free", "block", "block"],
-    "T-33": ["booked", "free", "free", "free", "free", "booked"],
-    "T-37": ["free", "free", "Mia S.", "free", "free", "free"],
-    "T-40": ["free", "booked", "booked", "free", "free", "free"],
-  };
-
-  let tables = Array.from({ length: COLS * ROWS }, (_, i) => {
-    const id = "T-" + String(i + 1).padStart(2, "0");
-    return { id, slots: (SAMPLE[id] || timeSlots.map(() => "free")).slice() };
-  });
-
+  let date = null;           // day shown (YYYY-MM-DD); null = let the API pick today
+  let timeSlots = [];        // e.g. ["11:00", "11:30", …] from the API
+  let tables = [];           // [{ code, seats, row, col, slots: [{ time, status, label, reason, … }] }]
   let activeSlot = 0;        // which time slot the map shows
   let selectedTable = null;  // table highlighted from the map
+  let busy = false;          // a block/unblock is in flight: don't redraw over it
+  let loadFailed = false;
+  let refreshTimer = null;
 
   const pickerEl = document.getElementById("time-picker");
+  const dayPicker = document.getElementById("day-picker");
   const gridEl = document.getElementById("floor-grid");
   const summaryEl = document.getElementById("floor-summary");
   const headerEl = document.getElementById("schedule-header");
   const bodyEl = document.getElementById("schedule-body");
+  const scheduleEl = document.getElementById("schedule");
 
+  // ---------- header ----------
+  if (user.stall) document.title = `${user.stall.name} · Tables`;
+  document.getElementById("sign-out").addEventListener("click", (e) => {
+    e.preventDefault();
+    Auth.logout();
+  });
+
+  // ---------- toast ----------
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
+  function showToast(message) {
+    toast.textContent = message;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 5000);
+  }
+
+  // ---------- loading ----------
+  async function load() {
+    clearTimeout(refreshTimer);
+    try {
+      const data = await Api.get("/seller/tables", { date });
+      date = data.date;
+      timeSlots = data.slots;
+      tables = data.tables;
+      if (activeSlot >= timeSlots.length) activeSlot = 0;
+      renderDays(data.days);
+      renderNoShows(data.no_shows, data.date_label);
+      loadFailed = false;
+      if (!busy) renderAll();
+    } catch (err) {
+      if (!loadFailed) showToast(err.message);
+      loadFailed = true;
+    } finally {
+      refreshTimer = setTimeout(load, REFRESH_MS);
+    }
+  }
+
+  function renderAll() {
+    renderPicker();
+    renderMap();
+    renderHeader();
+    render();
+  }
+
+  // API status → the CSS kinds this page already had: free, filled (reserved), block
   function kindOf(status) {
     if (status === "free") return "free";
-    if (status === "block") return "block";
-    return "filled";
+    if (status === "blocked") return "block";
+    return "filled";   // booked, held, seated
+  }
+
+  // Text shown inside a cell / map tile
+  function slotText(slot) {
+    if (slot.status === "booked") return slot.label || "booked";
+    if (slot.status === "blocked") return slot.reason || "blocked";
+    return slot.status;   // free, held, seated
+  }
+
+  // ---------- day picker ----------
+  function renderDays(days) {
+    dayPicker.innerHTML = days.map(d =>
+      `<option value="${escapeHtml(d.date)}" ${d.date === date ? "selected" : ""}>${escapeHtml(d.label)}</option>`
+    ).join("");
+  }
+
+  dayPicker.addEventListener("change", () => {
+    date = dayPicker.value;
+    selectedTable = null;
+    load();
+  });
+
+  // ---------- no-shows ----------
+  function renderNoShows(noShows, dayLabel) {
+    document.getElementById("no-shows-title").textContent =
+      `No-shows ${dayLabel === "Today" ? "today" : dayLabel} · ${noShows.length}`;
+    document.getElementById("no-shows-list").innerHTML = noShows.map(n => `
+      <li><strong>${escapeHtml(n.table)}</strong> · ${escapeHtml(n.time)} · ${escapeHtml(n.name)}
+        <span class="no-shows-ref">${escapeHtml(n.ref)}</span></li>
+    `).join("");
   }
 
   // ── Time picker ──
@@ -133,10 +200,7 @@
     const btn = e.target.closest("button[data-slot]");
     if (!btn) return;
     activeSlot = Number(btn.dataset.slot);
-    renderPicker();
-    renderMap();
-    renderHeader();
-    render();
+    renderAll();
   });
 
   // ── Floor map ──
@@ -145,19 +209,21 @@
     const counts = { free: 0, filled: 0, block: 0 };
 
     tables.forEach(table => {
-      const status = table.slots[activeSlot];
-      const kind = kindOf(status);
+      const slot = table.slots[activeSlot];
+      const kind = kindOf(slot.status);
       counts[kind]++;
 
       const tile = document.createElement("button");
       tile.type = "button";
       tile.className = `floor-table floor-table--${kind}` +
-        (table.id === selectedTable ? " is-selected" : "");
-      tile.dataset.table = table.id;
-      tile.setAttribute("aria-label", `${table.id}, ${status} at ${timeSlots[activeSlot]}`);
+        (table.code === selectedTable ? " is-selected" : "");
+      tile.dataset.table = table.code;
+      tile.style.gridRow = table.row;       // place the table where it really is
+      tile.style.gridColumn = table.col;
+      tile.setAttribute("aria-label", `${table.code}, ${table.seats} seats, ${slotText(slot)} at ${timeSlots[activeSlot]}`);
       tile.innerHTML = `
-        <span class="floor-table__id">${table.id}</span>
-        <span class="floor-table__status">${escapeHtml(status)}</span>
+        <span class="floor-table__id">${escapeHtml(table.code)}</span>
+        <span class="floor-table__status">${escapeHtml(slotText(slot))}</span>
       `;
       gridEl.appendChild(tile);
     });
@@ -181,6 +247,8 @@
 
   // ── Availability schedule ──
   function renderHeader() {
+    // The grid has one column per time slot, however many the API sends.
+    scheduleEl.style.setProperty("--slot-count", timeSlots.length);
     headerEl.innerHTML = `<span>Table</span>` +
       timeSlots.map((t, i) =>
         `<span class="${i === activeSlot ? "is-current" : ""}">${t}</span>`).join("");
@@ -191,35 +259,38 @@
 
     tables.forEach(table => {
       const row = document.createElement("div");
-      row.className = "schedule-row" + (table.id === selectedTable ? " is-selected" : "");
-      row.dataset.row = table.id;
+      row.className = "schedule-row" + (table.code === selectedTable ? " is-selected" : "");
+      row.dataset.row = table.code;
 
       const label = document.createElement("span");
       label.className = "table-label";
-      label.textContent = table.id;
+      label.textContent = table.code;
       row.appendChild(label);
 
-      table.slots.forEach((status, slotIndex) => {
-        row.appendChild(buildCell(table.id, slotIndex, status));
+      table.slots.forEach((slot, slotIndex) => {
+        row.appendChild(buildCell(table.code, slotIndex, slot));
       });
 
       bodyEl.appendChild(row);
     });
   }
 
-  function buildCell(tableId, slotIndex, status) {
-    const kind = kindOf(status);
+  function buildCell(tableCode, slotIndex, slot) {
+    const kind = kindOf(slot.status);
 
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = `slot-cell slot-cell--${kind}` + (slotIndex === activeSlot ? " is-current" : "");
-    cell.textContent = status;
-    cell.dataset.table = tableId;
-    cell.dataset.slot = slotIndex;
+    cell.textContent = slotText(slot);
+    cell.dataset.table = tableCode;
+    cell.dataset.time = slot.time;
+    cell.dataset.status = slot.status;
 
     if (kind === "filled") {
       cell.disabled = true;
-      cell.title = "Live reservation — manage it from Orders";
+      cell.title = slot.reservation_ref
+        ? `${slot.status} · ${slot.reservation_ref}`
+        : "Live reservation";
     } else {
       cell.title = kind === "free" ? "Click to block this slot" : "Click to free this slot";
     }
@@ -227,24 +298,29 @@
     return cell;
   }
 
-  bodyEl.addEventListener("click", (e) => {
+  // Click a free slot → block it. Click a blocked slot → unblock it.
+  bodyEl.addEventListener("click", async (e) => {
     const cell = e.target.closest(".slot-cell--free, .slot-cell--block");
-    if (!cell) return;
+    if (!cell || busy) return;
 
-    const table = tables.find(t => t.id === cell.dataset.table);
-    if (!table) return;
+    const code = encodeURIComponent(cell.dataset.table);
+    const time = cell.dataset.time;
 
-    const slotIndex = Number(cell.dataset.slot);
-    table.slots[slotIndex] = table.slots[slotIndex] === "free" ? "block" : "free";
-    render();
-    renderMap();
+    busy = true;
+    cell.disabled = true;
+    try {
+      if (cell.dataset.status === "free") {
+        await Api.post(`/seller/tables/${code}/block`, { date, time, reason: "Cleaning" });
+      } else {
+        await Api.del(`/seller/tables/${code}/block`, { date, time });
+      }
+    } catch (err) {
+      showToast(err.message);   // e.g. 409: a student reserved it in the meantime
+    } finally {
+      busy = false;
+      load();
+    }
   });
-
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  }
 
   const navList = document.getElementById("nav-list");
   const sidebarFooter = document.querySelector(".sidebar-footer");
@@ -262,10 +338,7 @@
     });
   });
 
-  renderPicker();
-  renderMap();
-  renderHeader();
-  render();
+  load();
 
 })();
 </script>

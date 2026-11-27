@@ -1029,6 +1029,12 @@ button, input, textarea{ font-family:inherit; }
 
 .page-seller-analytics .bar:hover{ background:var(--green); }
 
+.page-seller-analytics .chart-caption{
+  margin:-18px 4px 28px;
+  font-size:0.85rem;
+  color:var(--seller-muted);
+}
+
 .page-seller-analytics .summary-row{
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
@@ -1269,10 +1275,11 @@ button, input, textarea{ font-family:inherit; }
 
 .page-seller-tables .schedule-row{
   display:grid;
-  grid-template-columns:70px repeat(6, minmax(84px, 1fr));
+  /* one column per time slot; --slot-count is set by tables.html from the API */
+  grid-template-columns:70px repeat(var(--slot-count, 6), minmax(84px, 1fr));
   gap:10px;
   align-items:center;
-  min-width:640px;
+  min-width:calc(70px + var(--slot-count, 6) * 94px);
 }
 
 .page-seller-tables .schedule-header{
@@ -1378,6 +1385,28 @@ button, input, textarea{ font-family:inherit; }
   font-weight:700;
   font-size:1.05rem;
   margin:0 0 8px;
+}
+
+.page-seller-tables .no-shows-list{
+  list-style:none;
+  margin:0 0 10px;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:0.95rem;
+}
+.page-seller-tables .no-shows-list:empty{ display:none; }
+.page-seller-tables .no-shows-ref{ color:var(--seller-muted); font-size:0.85rem; margin-left:6px; }
+
+.page-seller-tables .context-label select{
+  font:inherit;
+  color:inherit;
+  border:none;
+  background:var(--seller-paper);
+  border-radius:8px;
+  padding:4px 8px;
+  cursor:pointer;
 }
 
 .page-seller-tables .no-shows-card p{
