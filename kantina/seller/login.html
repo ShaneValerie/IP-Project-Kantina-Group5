@@ -72,6 +72,7 @@
   </div>
 </main>
 
+<script src="../js/api.js"></script>
 <script>
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -128,9 +129,12 @@ document.addEventListener("DOMContentLoaded", () => {
     setLoading(true);
 
     try {
-
-      await fakeSignIn(storeAccountInput.value.trim(), passwordInput.value);
-      window.location.href = "orders.html";
+      const data = await Api.post("/auth/staff/login", {
+        account: storeAccountInput.value.trim(),
+        password: passwordInput.value,
+      });
+      Auth.save(data.token, data.user);
+      window.location.href = Auth.nextUrl("orders.html");
     } catch (err) {
       setError(passwordInput, passwordError, err.message || "Sign in failed. Try again.");
     } finally {
@@ -141,15 +145,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function setLoading(isLoading) {
     submitBtn.disabled = isLoading;
     submitBtn.classList.toggle("is-loading", isLoading);
-  }
-
-  function fakeSignIn(storeAccount, password) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (storeAccount && password) resolve();
-        else reject(new Error("Invalid store account or password."));
-      }, 700);
-    });
   }
 });
 </script>

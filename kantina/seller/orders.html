@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lola's Silog · Orders</title>
+<title>Kantina · Orders</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="page-seller-app page-seller-orders">
@@ -11,24 +11,24 @@
 <div class="app-shell">
 
   <header class="app-topbar">
-    <h1>Lola's Silog</h1>
+    <h1 id="stall-name">Orders</h1>
     <div class="topbar-right">
       <span class="active-stat">
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <circle cx="7.5" cy="7.5" r="6.3" stroke="currentColor" stroke-width="1.4"/>
           <circle cx="7.5" cy="7.5" r="2" fill="currentColor"/>
         </svg>
-        <span id="active-count">12 active</span>
+        <span id="active-count">– active</span>
       </span>
       <div class="user-menu" id="user-menu">
         <button class="user-menu__trigger" id="user-menu-trigger" aria-haspopup="true" aria-expanded="false">
-          Ana
+          <span id="user-name"></span>
           <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
         <div class="user-menu__panel" role="menu">
-          <a href="login.html" role="menuitem">Sign out</a>
+          <a href="login.html" role="menuitem" id="sign-out">Sign out</a>
         </div>
       </div>
     </div>
@@ -59,8 +59,14 @@
 
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="../js/api.js"></script>
 <script>
 (function () {
+
+  const user = Auth.requireStaff();
+  const REFRESH_MS = 5000;
 
   const COLUMNS = [
     { status: "pending",    label: "Pending" },
@@ -69,20 +75,75 @@
     { status: "ready",      label: "Ready" },
   ];
 
-  let orders = [
-    { id: 90218, status: "pending",   meta: "1× Tapsilog" },
-    { id: 90219, status: "pending",   meta: "2× Longsilog" },
-    { id: 90217, status: "paid",      meta: "GCash \u20B1150" },
-    { id: 90214, status: "preparing", meta: "11:30 · 6 min left" },
-    { id: 90215, status: "preparing", meta: "11:30" },
-    { id: 90216, status: "preparing", meta: "11:34" },
-    { id: 90213, status: "ready",     meta: "Waiting 3 min" },
-    { id: 90210, status: "ready",     meta: "Waiting 1 min" },
-  ];
+  // Button on each card → status sent to PATCH /seller/orders/{id}/status
+  const NEXT_STATUS = { accept: "paid", start: "preparing", markReady: "ready", complete: "completed" };
 
-  const PAYMENT_SAMPLES = ["GCash \u20B1150", "Cash \u20B1120", "Maya \u20B1180", "GCash \u20B1200"];
+  let orders = [];
+  let busy = false;          // an action is in flight: don't redraw over it
+  let loadFailed = false;    // only toast the first failure in a row
+  let refreshTimer = null;
 
   const board = document.getElementById("board");
+
+  // ---------- header ----------
+  function showStall(stall) {
+    if (!stall) return;
+    document.getElementById("stall-name").textContent = stall.name;
+    document.title = `${stall.name} · Orders`;
+  }
+  showStall(user.stall);
+  document.getElementById("user-name").textContent = user.account || user.name || "Account";
+  document.getElementById("sign-out").addEventListener("click", (e) => {
+    e.preventDefault();
+    Auth.logout();
+  });
+
+  // ---------- toast ----------
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
+  function showToast(message) {
+    toast.textContent = message;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 4000);
+  }
+
+  // ---------- loading ----------
+  async function load() {
+    clearTimeout(refreshTimer);
+    try {
+      const data = await Api.get("/seller/orders");
+      showStall(data.stall);
+      orders = data.orders.filter(o => o.status !== "completed");
+      document.getElementById("active-count").textContent = `${data.active_count} active`;
+      loadFailed = false;
+      if (!busy) render();
+    } catch (err) {
+      if (!loadFailed) showToast(err.message);
+      loadFailed = true;
+    } finally {
+      refreshTimer = setTimeout(load, REFRESH_MS);
+    }
+  }
+
+  // ---------- rendering ----------
+  function metaText(order) {
+    const method = order.payment_method === "gcash" ? "GCash" : "Cash";
+    switch (order.status) {
+      case "pending":
+        return order.payment_method === "counter"
+          ? `${order.items_text} · Pay at counter`
+          : `${order.items_text} · Awaiting GCash payment`;
+      case "paid":
+        return `${method} ${Fmt.peso(order.total)}`;
+      case "preparing":
+        return `${order.pickup_time} · ${order.minutes_in_status} min`;
+      case "ready":
+        return `Waiting ${order.minutes_in_status} min`;
+      default:
+        return order.items_text;
+    }
+  }
 
   function render() {
     board.innerHTML = "";
@@ -134,10 +195,10 @@
 
     const metaEl = document.createElement("p");
     metaEl.className = "card__meta";
-    metaEl.textContent = order.meta;
+    metaEl.textContent = metaText(order);
     card.appendChild(metaEl);
 
-    const action = getAction(status, isQueuedPrep);
+    const action = getAction(order, isQueuedPrep);
     if (action) {
       const btn = document.createElement("button");
       btn.className = `card__btn card__btn--${action.style}`;
@@ -150,49 +211,36 @@
     return card;
   }
 
-  function getAction(status, isQueuedPrep) {
-    if (status === "pending") return { label: "Accept", action: "accept", style: "solid" };
+  function getAction(order, isQueuedPrep) {
+    const status = order.status;
+    // Pending GCash orders are still waiting for the student to pay: the API refuses Accept.
+    if (status === "pending") return order.can_accept ? { label: "Accept", action: "accept", style: "solid" } : null;
     if (status === "paid") return { label: "Start", action: "start", style: "solid" };
     if (status === "preparing" && !isQueuedPrep) return { label: "Mark ready", action: "markReady", style: "solid" };
     if (status === "ready") return { label: "Complete", action: "complete", style: "outline" };
     return null;
   }
 
-  function findOrder(id) {
-    return orders.find(o => o.id === id);
-  }
+  async function handleAction(btn) {
+    const status = NEXT_STATUS[btn.dataset.action];
+    if (!status || busy) return;
 
-  function handleAction(action, id) {
-    const order = findOrder(id);
-    if (!order) return;
-
-    if (action === "accept" && order.status === "pending") {
-      order.status = "paid";
-      order.meta = PAYMENT_SAMPLES[Math.floor(Math.random() * PAYMENT_SAMPLES.length)];
-    } else if (action === "start" && order.status === "paid") {
-      order.status = "preparing";
-      order.meta = nowLabel();
-    } else if (action === "markReady" && order.status === "preparing") {
-      order.status = "ready";
-      order.meta = "Waiting 0 min";
-    } else if (action === "complete" && order.status === "ready") {
-      orders = orders.filter(o => o.id !== id);
+    busy = true;
+    btn.disabled = true;
+    try {
+      await Api.patch(`/seller/orders/${btn.dataset.id}/status`, { status });
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      busy = false;
+      load();
     }
-
-    render();
-  }
-
-  function nowLabel() {
-    const d = new Date();
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm}`;
   }
 
   board.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
-    handleAction(btn.dataset.action, Number(btn.dataset.id));
+    handleAction(btn);
   });
 
   const navList = document.getElementById("nav-list");
@@ -237,6 +285,7 @@
   });
 
   render();
+  load();
 
 })();
 </script>
