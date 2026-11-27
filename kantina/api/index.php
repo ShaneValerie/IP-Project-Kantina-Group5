@@ -14,6 +14,9 @@ Config::load(dirname(__DIR__), 'kantina');
 $modules = [
     'Support',
     'Auth',
+    'Clients',
+    'Catalog',
+    'Integrations',
 ];
 foreach ($modules as $module) {
     require_once __DIR__ . "/src/$module.php";
