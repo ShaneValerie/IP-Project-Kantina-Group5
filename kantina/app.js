@@ -281,10 +281,6 @@ function handlePay() {
 
 // ── GCash page ──
 function handleAuthorize() {
-  const mobile = document.getElementById('mobile')?.value.trim();
-  const mpin   = document.getElementById('mpin')?.value.trim();
-  if (!mobile || !mpin) { showToast('Enter your mobile number and MPIN'); return; }
-  if (mpin.length < 4)  { showToast('MPIN looks too short'); return; }
   const btn = document.getElementById('authorize-btn');
   btn.disabled = true;
   btn.textContent = 'Authorizing…';
