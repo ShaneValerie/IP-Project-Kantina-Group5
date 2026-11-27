@@ -47,6 +47,7 @@
           <h2 id="item-title"></h2>
           <p class="item-price" id="item-price"></p>
         </div>
+        <p class="item-stock" id="item-stock" hidden></p>
         <p class="item-desc" id="item-desc"></p>
 
         <div id="addon-section" hidden>
@@ -85,6 +86,7 @@
   let item = null;
   let BASE_PRICE = 0;
   let qty = 1;
+  let maxQty = 10;
   let canOrder = false;
   const addBtn = document.getElementById('add-btn');
   const qtyEl = document.getElementById('qty');
@@ -103,7 +105,7 @@
 
   document.getElementById('addon-list').addEventListener('change', update);
   document.getElementById('qty-minus').addEventListener('click', () => { if (qty > 1) { qty--; update(); } });
-  document.getElementById('qty-plus').addEventListener('click', () => { if (qty < 10) { qty++; update(); } });
+  document.getElementById('qty-plus').addEventListener('click', () => { if (qty < maxQty) { qty++; update(); } });
 
   addBtn.addEventListener('click', () => {
     if (!canOrder) return;
@@ -123,7 +125,7 @@
   }
 
   const sku = qs('sku');
-  if (!sku) { showError('No menu item was chosen.'); return; }
+  if (!sku) { location.replace('home.html'); return; }   // older links (cart "Edit") don't name an item yet
 
   Api.get('/menu-items/' + encodeURIComponent(sku))
     .then(res => {
@@ -151,11 +153,22 @@
           </label>`).join('');
       }
 
-      canOrder = item.available && !item.sold_out && item.stall.accepts_orders;
+      // Never let the tray hold more than the stall has left (stock is null when it isn't tracked).
+      const inTray = Cart.items().filter(i => i.sku === item.sku).reduce((n, i) => n + i.qty, 0);
+      if (item.stock !== null && item.stock !== undefined) maxQty = Math.min(10, item.stock - inTray);
+      if (item.stock !== null && item.stock !== undefined && item.stock > 0 && (item.low_stock || item.stock <= 5)) {
+        const stockEl = document.getElementById('item-stock');
+        stockEl.textContent = 'Only ' + item.stock + ' left today';
+        stockEl.hidden = false;
+      }
+
+      canOrder = item.available && !item.sold_out && item.stall.accepts_orders && maxQty >= 1;
       addBtn.disabled = !canOrder;
       if (!canOrder) {
         addBtn.textContent = item.sold_out ? 'Sold out today'
-          : !item.stall.accepts_orders ? 'Stall isn\u2019t taking orders' : 'Not available today';
+          : !item.stall.accepts_orders ? 'Stall isn\u2019t taking orders'
+          : !item.available ? 'Not available today'
+          : 'All ' + item.stock + ' left are in your tray';
       }
       update();
     })
