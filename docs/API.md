@@ -227,6 +227,12 @@ GCash orders stay `pending` until `POST /payments/{ref}/confirm`. Counter orders
 `{ "result": "authorized" }` → `{ "checkout": Checkout }` with `payment_status: "paid"` and orders `paid`.
 `{ "result": "cancelled" }` → the orders are cancelled and the stock goes back. The cart in the browser is kept.
 
+Only orders that are still going ahead are charged: if one order of the checkout was cancelled first, the checkout `total` already excludes it.
+Errors:
+- `409 payment_expired`: more than 15 minutes have passed. The order was cancelled and nothing was charged.
+- `409 checkout_cancelled`: every order in it was cancelled.
+- `409 already_paid`: sent `cancelled` for a paid checkout.
+
 ### `GET /orders?status=active` (or `history`)
 ```json
 { "orders": [
@@ -237,6 +243,7 @@ GCash orders stay `pending` until `POST /payments/{ref}/confirm`. Counter orders
     "placed_at": "2026-11-28T11:04:00+08:00" } ] }
 ```
 `status`: `pending` → `paid` → `preparing` → `ready` → `completed`, or `cancelled`.
+`refund_due` is `true` when an order was cancelled after it was paid (by the student, the stall, or because the ERP ran out of stock); `cancel_reason` then ends with "· ₱100 to be refunded".
 `status_label`: `Awaiting payment` / `Pay at counter` / `Paid` / `Preparing` / `Ready` / `Done` / `Cancelled`.
 
 ### `GET /orders/{ref}` (tracking page, poll every 5 s)

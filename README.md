@@ -106,7 +106,7 @@ Starts Kantina on http://localhost:8000, the ERP on :8001 and the CMS on :8002 u
 php tests/smoke.php                    # dev.sh ports 8000 / 8001 / 8002
 php tests/smoke.php http://localhost/IP-Project-Kantina-Group5/kantina http://localhost/IP-Project-Kantina-Group5/erp http://localhost/IP-Project-Kantina-Group5/cms
 ```
-It checks sign-in and roles, ordering → ERP sales orders and stock, payment, the store console workflow, cancelling (stock comes back), CMS publish → webhook → Kantina, forged webhook signatures, reservations and ERP analytics (43 checks).
+It checks sign-in and roles, ordering → ERP sales orders and stock, payment (including after a partial cancellation), refunds, the store console workflow, cancelling (stock comes back), ERP stock webhooks, CMS publish → webhook → Kantina, duplicate and forged webhooks, reservations and ERP analytics (51 checks).
 
 **Integrations status page**: `kantina/admin/integrations.html` (sign in with a staff account). It shows ERP/CMS health, the outbox with *Retry now*, received webhooks, emails, and *Sync catalog now*.
 

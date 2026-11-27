@@ -22,6 +22,9 @@ final class Db
                 PDO::ATTR_STRINGIFY_FETCHES => false,
             ]);
             self::$pdo->exec("SET time_zone = '+08:00'");
+            // Same strict rules as MySQL 8's defaults on every server (XAMPP's MariaDB is more lenient),
+            // so a query that works locally also works on the live server.
+            self::$pdo->exec("SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
         }
         return self::$pdo;
     }

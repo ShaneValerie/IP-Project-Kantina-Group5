@@ -35,12 +35,6 @@ final class Outbox
         ]);
     }
 
-    /** Is any message for this order still waiting to be delivered? */
-    public static function hasUndelivered(string $ref, string $event): bool
-    {
-        return (bool) Db::value("SELECT 1 FROM integration_outbox WHERE aggregate_ref = ? AND event = ? AND status IN ('pending', 'failed') LIMIT 1", [$ref, $event]);
-    }
-
     /** Give up on undelivered messages for an order (e.g. it was cancelled before the ERP ever heard of it). */
     public static function drop(string $ref, string $reason): void
     {
@@ -155,13 +149,19 @@ final class Outbox
             return $base + ['status' => 'rejected', 'code' => $err['code'] ?? 'rejected', 'message' => $message, 'sku' => $err['fields']['sku'] ?? null];
         }
 
-        // ERP offline or erroring: try again later.
+        // ERP offline or erroring: try again later — or give up after MAX_ATTEMPTS.
         $attempts = (int) $row['attempts'];
+        if ($attempts >= self::MAX_ATTEMPTS) {
+            self::finish($row['id'], 'dead', 'Gave up after ' . $attempts . ' attempts: ' . $res['error']);
+            if ($row['event'] === 'erp.sales_order.create') {
+                Db::exec("UPDATE orders SET erp_status = 'failed' WHERE ref = ?", [$ref]);
+            }
+            return $base + ['status' => 'gave_up', 'message' => $res['error']];
+        }
         $delay = self::BACKOFF[$attempts] ?? 1800;
-        $status = $attempts >= self::MAX_ATTEMPTS ? 'dead' : 'failed';
         Db::exec(
-            'UPDATE integration_outbox SET status = ?, last_error = ?, next_attempt_at = DATE_ADD(NOW(), INTERVAL ? SECOND) WHERE id = ?',
-            [$status, $res['error'], $delay, $row['id']]
+            "UPDATE integration_outbox SET status = 'failed', last_error = ?, next_attempt_at = DATE_ADD(NOW(), INTERVAL ? SECOND) WHERE id = ?",
+            [$res['error'], $delay, $row['id']]
         );
         return $base + ['status' => 'retrying', 'message' => $res['error'], 'retry_in_seconds' => $delay];
     }

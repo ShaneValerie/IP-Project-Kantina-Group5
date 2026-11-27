@@ -88,8 +88,9 @@
           if (res.ok) return data;
           var err = (data && data.error) || {};
           if (res.status === 401 && token && !/\/auth\/(staff\/)?login$/.test(path)) {
+            var destination = Auth.loginUrl();   // decide before clearing (it depends on who was signed in)
             Auth.clear();
-            Auth.goToLogin();
+            location.href = destination;
           }
           throw new ApiError(res.status, err.code || 'http_' + res.status, err.message || 'Something went wrong (' + res.status + ').', err.fields);
         });
@@ -112,6 +113,8 @@
     save: function (token, user) { write(KEYS.token, token); write(KEYS.user, user); },
     clear: function () { write(KEYS.token, null); write(KEYS.user, null); },
     loginUrl: function () {
+      // Admin pages (admin/…) have their own sign-in form: just reload them.
+      if (/\/admin\//.test(location.pathname)) return location.href;
       var staff = /\/seller\//.test(location.pathname) || Auth.isStaff();
       var url = new URL(staff ? 'seller/login.html' : 'signin.html', APP_ROOT);
       url.searchParams.set('next', location.pathname + location.search);
