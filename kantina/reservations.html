@@ -38,64 +38,17 @@
   </div>
   <div class="flow-head-text">
     <h1>Your reservations</h1>
-    <p>1 coming up today</p>
+    <p id="rsv-summary">Loading…</p>
   </div>
   </header>
 
   <div class="scroll">
     <div class="rsv-body" style="padding-bottom:30px;">
       <div class="section-label">Upcoming</div>
-
-      <div class="rsv-card current" data-reservation="T-12">
-        <div class="rsv-card-top">
-          <div>
-            <strong>T-12 · Today 12:00</strong>
-            <div class="meta">2 people · Lawrence Bunzel Canteen</div>
-          </div>
-          <span class="rsv-badge">Upcoming</span>
-        </div>
-        <div class="rsv-card-actions">
-          <button class="btn btn-primary" type="button" data-action="checkin">Check in</button>
-          <button class="btn btn-quiet" type="button" data-action="cancel">Cancel</button>
-        </div>
-      </div>
-
-      <div class="rsv-card" data-reservation="T-04">
-        <div class="rsv-card-top">
-          <div>
-            <strong>T-04 · Fri 11:30</strong>
-            <div class="meta">4 people · Lawrence Bunzel Canteen</div>
-          </div>
-          <span class="rsv-badge outline">Booked</span>
-        </div>
-        <div class="rsv-card-actions">
-          <button class="btn btn-secondary" type="button" data-action="view">View details</button>
-          <button class="btn btn-quiet" type="button" data-action="cancel">Cancel</button>
-        </div>
-      </div>
+      <div id="upcoming-list"><p class="load-msg">Loading…</p></div>
 
       <div class="section-label">Past</div>
-
-      <div class="rsv-card past">
-        <div class="rsv-card-top">
-          <div>
-            <strong>T-07 · Aug 28</strong>
-            <div class="meta">Checked in · 45 min</div>
-          </div>
-          <span class="rsv-badge muted">Completed</span>
-        </div>
-      </div>
-
-      <div class="rsv-card past">
-        <div class="rsv-card-top">
-          <div>
-            <strong>T-03 · Aug 21</strong>
-            <div class="meta">No-show · auto released</div>
-          </div>
-          <span class="rsv-badge muted">Released</span>
-        </div>
-      </div>
-
+      <div id="past-list"></div>
     </div>
   </div>
 
@@ -120,6 +73,73 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
+<script src="js/api.js"></script>
 <script src="app.js"></script>
+<script>
+// My reservations: GET /reservations. Check in → POST /reservations/{ref}/check-in, Cancel → DELETE.
+(function () {
+  Auth.requireStudent();
+  const upcomingEl = document.getElementById('upcoming-list');
+  const pastEl = document.getElementById('past-list');
+
+  function card(r, past) {
+    const top = `
+        <div class="rsv-card-top">
+          <div>
+            <strong>${escapeHtml(r.table)} \u00b7 ${escapeHtml(r.day_label)} ${Fmt.ampm(r.time)}</strong>
+            <div class="meta">${escapeHtml(r.detail)}</div>
+          </div>
+          <span class="rsv-badge${past ? ' muted' : r.status === 'checked_in' || r.day_label === 'Today' ? '' : ' outline'}">${escapeHtml(r.status_label)}</span>
+        </div>`;
+    if (past) return `<div class="rsv-card past">${top}</div>`;
+    const actions = [
+      r.can_check_in ? `<button class="btn btn-primary" type="button" data-action="checkin" data-ref="${escapeHtml(r.ref)}">Check in</button>` : '',
+      `<a class="btn btn-secondary" href="reservation-confirmed.html?ref=${encodeURIComponent(r.ref)}">View details</a>`,
+      r.can_cancel ? `<button class="btn btn-quiet" type="button" data-action="cancel" data-ref="${escapeHtml(r.ref)}">Cancel</button>` : ''
+    ].join('');
+    return `<div class="rsv-card${r.day_label === 'Today' ? ' current' : ''}">${top}<div class="rsv-card-actions">${actions}</div></div>`;
+  }
+
+  function load() {
+    return Api.get('/reservations')
+      .then(res => {
+        const n = res.upcoming.length;
+        document.getElementById('rsv-summary').textContent = n ? n + ' coming up' : 'Nothing booked yet';
+        upcomingEl.innerHTML = n ? res.upcoming.map(r => card(r, false)).join('')
+          : '<p class="load-msg">No upcoming reservations. <a href="reserve.html">Reserve a table</a></p>';
+        pastEl.innerHTML = res.past.length ? res.past.map(r => card(r, true)).join('')
+          : '<p class="load-msg">No past reservations yet.</p>';
+      })
+      .catch(err => {
+        document.getElementById('rsv-summary').textContent = '';
+        upcomingEl.innerHTML = `<p class="load-msg">${escapeHtml(err.message)}</p>`;
+        pastEl.innerHTML = '';
+      });
+  }
+
+  upcomingEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const ref = btn.dataset.ref;
+    if (btn.dataset.action === 'cancel' && !confirm('Cancel this reservation?')) return;
+    btn.disabled = true;
+    const call = btn.dataset.action === 'checkin'
+      ? Api.post('/reservations/' + encodeURIComponent(ref) + '/check-in')
+      : Api.del('/reservations/' + encodeURIComponent(ref));
+    call
+      .then(() => {
+        if (btn.dataset.action === 'cancel' && Cart.prefs().reservation_ref === ref) Cart.setPrefs({ reservation_ref: null });
+        showToast(btn.dataset.action === 'checkin' ? 'Checked in \u2014 enjoy your meal!' : 'Reservation cancelled');
+        return load();
+      })
+      .catch(err => { showToast(err.message); btn.disabled = false; });
+  });
+
+  load();
+  // check-in opens 15 minutes before the start time: refresh so the button appears by itself
+  setInterval(() => { if (!document.hidden) load(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+})();
+</script>
 </body>
 </html>

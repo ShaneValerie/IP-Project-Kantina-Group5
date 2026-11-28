@@ -1122,6 +1122,10 @@ a.order-card:hover{ border-color:var(--green); }
 .page-reserve .rsv-table[aria-pressed="true"]{ background:var(--yellow); border-color:var(--yellow); color:var(--ink); }
 .page-reserve .rsv-table[aria-pressed="true"] small{ color:var(--ink-soft); }
 .page-reserve .rsv-legend i.picked{ background:var(--yellow); border-color:var(--yellow); }
+.page-reserve .rsv-floor-grid{ grid-template-columns:repeat(4,1fr); }   /* the API lays tables out in 4 columns */
+.page-reserve .rsv-table small{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+.fav-card svg{ width:26px; height:26px; margin:19px auto; display:block; color:var(--yellow-deep); }
+#rc-cancel[hidden], #rc-food[hidden], #rc-calendar[hidden]{ display:none; }
 
 .page-reservations .rsv-card.current .rsv-badge{ background:var(--yellow); color:var(--ink); }
 
