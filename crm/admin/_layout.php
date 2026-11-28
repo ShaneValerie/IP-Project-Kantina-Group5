@@ -6,7 +6,8 @@ function layout_start(string $title, string $active): void
     $admin = $_SESSION['admin'] ?? null;
     $nav = [
         'index' => ['index.php', 'Dashboard'],
-        // Add CRM pages here, e.g. 'customers' => ['customers.php', 'Customers'],
+        'customers' => ['customers.php', 'Customers'],
+        'tickets' => ['tickets.php', 'Tickets'],
         'webhooks' => ['webhooks.php', 'Webhooks to Kantina'],
     ];
     ?><!DOCTYPE html>
