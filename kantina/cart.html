@@ -30,12 +30,12 @@
   </div>
   <header class="flow-head">
   <div class="flow-head-top">
-    <a class="icon-btn" href="stall.html" aria-label="Back to menu"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    <a class="icon-btn" href="home.html" id="cart-back" aria-label="Back to menu"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
   <div class="flow-head-text">
     <span class="flow-head-meta">Step 1 of 3</span>
-    <h1>Your tray, Ana</h1>
-    <p id="cart-sub">2 items from 2 stalls</p>
+    <h1 id="cart-title">Your tray</h1>
+    <p id="cart-sub"></p>
   </div>
   <ol class="flow-steps" aria-label="Checkout progress: step 1 of 3"><li class="done"><span>Cart</span></li><li><span>Checkout</span></li><li><span>Done</span></li></ol>
   </header>
@@ -44,32 +44,9 @@
     <div class="cart-body">
       <div class="cart-layout">
         <div class="cart-items-col">
-          <div class="cart-stall-label">Lola's Silog</div>
-          <div class="cart-item">
-            <div class="cart-item-top">
-              <strong>1× Tapsilog</strong>
-              <span class="price">₱85</span>
-            </div>
-            <div class="note">+ extra rice · no onions</div>
-            <div class="row-actions">
-              <a class="link-btn" href="item.html">Edit</a>
-              <button class="link-btn remove" type="button">Remove</button>
-            </div>
-          </div>
+          <div id="cart-items"></div>
 
-          <div class="cart-stall-label">Kape Kanto</div>
-          <div class="cart-item">
-            <div class="cart-item-top">
-              <strong>1× Iced coffee</strong>
-              <span class="price">₱60</span>
-            </div>
-            <div class="row-actions">
-              <a class="link-btn" href="item.html">Edit</a>
-              <button class="link-btn remove" type="button">Remove</button>
-            </div>
-          </div>
-
-          <div class="multi-stall-note">
+          <div class="multi-stall-note" id="multi-stall-note" hidden>
             <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
             <span>Multi-stall cart = one payment, separate kitchen tickets per stall.</span>
           </div>
@@ -77,57 +54,107 @@
 
         <div class="cart-summary-col">
           <div class="summary-box">
-            <div class="summary-row"><span>Subtotal</span><span id="cart-subtotal">₱145</span></div>
-            <div class="summary-row"><span>Service fee</span><span id="cart-fee">₱5</span></div>
-            <div class="summary-row total"><span>Total</span><span id="cart-total">₱150</span></div>
+            <div class="summary-row"><span>Subtotal</span><span id="cart-subtotal"></span></div>
+            <div class="summary-row"><span>Service fee</span><span id="cart-fee"></span></div>
+            <div class="summary-row total"><span>Total</span><span id="cart-total"></span></div>
           </div>
           <div class="cart-footer">
-            <a class="btn btn-primary" href="checkout.html"><span>Checkout</span><span id="cart-btn-total">₱150</span></a>
+            <a class="btn btn-primary" href="checkout.html" id="checkout-btn"><span>Checkout</span><span id="cart-btn-total"></span></a>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
+<script src="js/api.js"></script>
+<script src="app.js"></script>
 <script>
-// Remove an item from the cart and update the totals.
+// The tray (Cart in js/api.js), grouped by stall. Edit changes the quantity and note in place;
+// Remove drops the line. Totals = subtotal + Cart.SERVICE_FEE.
 (function () {
-  const SERVICE_FEE = 5;
-  const peso = n => '\u20B1' + n;
+  const user = Auth.requireStudent();
+  document.getElementById('cart-title').textContent = 'Your tray, ' + user.first_name;
+  const listEl = document.getElementById('cart-items');
+  let editing = null;   // index of the line being edited
+
+  function itemRow(i) {
+    const extras = (i.addons || []).map(a => '+ ' + a.name.toLowerCase());
+    if (i.note) extras.push(i.note);
+    const note = extras.length ? `<div class="note">${escapeHtml(extras.join(' · '))}</div>` : '';
+    const editor = editing === i.index ? `
+            <div class="cart-edit">
+              <div class="stepper">
+                <button type="button" data-act="minus" aria-label="One less">−</button>
+                <span aria-live="polite">${i.qty}</span>
+                <button type="button" data-act="plus" aria-label="One more">+</button>
+              </div>
+              <input class="cart-note" type="text" maxlength="200" value="${escapeHtml(i.note || '')}" placeholder="Note to kitchen" aria-label="Note to kitchen">
+              <button class="link-btn" type="button" data-act="done">Done</button>
+            </div>` : `
+            <div class="row-actions">
+              <button class="link-btn" type="button" data-act="edit">Edit</button>
+              <button class="link-btn remove" type="button" data-act="remove">Remove</button>
+            </div>`;
+    return `
+          <div class="cart-item" data-index="${i.index}">
+            <div class="cart-item-top">
+              <strong>${i.qty}× ${escapeHtml(i.name)}</strong>
+              <span class="price">${Fmt.peso(Cart.lineTotal(i))}</span>
+            </div>
+            ${note}${editor}
+          </div>`;
+  }
+
   function updateTotals() {
-    const prices = Array.from(document.querySelectorAll('.cart-item .price'))
-      .map(el => parseInt(el.textContent.replace(/[^0-9]/g, ''), 10) || 0);
-    const subtotal = prices.reduce((a, b) => a + b, 0);
-    document.getElementById('cart-subtotal').textContent = peso(subtotal);
-    const fee = prices.length ? SERVICE_FEE : 0;
-    document.getElementById('cart-fee').textContent = peso(fee);
-    document.getElementById('cart-total').textContent = peso(subtotal + fee);
-    document.getElementById('cart-btn-total').textContent = peso(subtotal + fee);
-    const stalls = document.querySelectorAll('.cart-stall-label').length;
-    document.getElementById('cart-sub').textContent = prices.length
-      ? prices.length + (prices.length === 1 ? ' item' : ' items') + ' from ' + stalls + (stalls === 1 ? ' stall' : ' stalls')
+    const count = Cart.count();
+    const groups = Cart.byStall();
+    const fee = count ? Cart.SERVICE_FEE : 0;
+    document.getElementById('cart-subtotal').textContent = Fmt.peso(Cart.subtotal());
+    document.getElementById('cart-fee').textContent = Fmt.peso(fee);
+    document.getElementById('cart-total').textContent = Fmt.peso(Cart.total());
+    document.getElementById('cart-btn-total').textContent = Fmt.peso(Cart.total());
+    document.getElementById('cart-sub').textContent = count
+      ? count + (count === 1 ? ' item' : ' items') + ' from ' + groups.length + (groups.length === 1 ? ' stall' : ' stalls')
       : 'Nothing here yet';
-    if (!prices.length) {
-      const col = document.querySelector('.cart-items-col');
-      col.innerHTML = '<p class="cart-stall-label">Your cart is empty</p><a class="link-btn" href="home.html">Browse stalls \u2192</a>';
-      const checkout = document.querySelector('.cart-footer .btn');
+    document.getElementById('multi-stall-note').hidden = groups.length < 2;
+    // back arrow returns to the last stall in the tray
+    const last = groups[groups.length - 1];
+    document.getElementById('cart-back').href = last ? 'stall.html?id=' + encodeURIComponent(last.stall.id) : 'home.html';
+    if (!count) {
+      listEl.innerHTML = '<p class="cart-stall-label">Your cart is empty</p><a class="link-btn" href="home.html">Browse stalls →</a>';
+      const checkout = document.getElementById('checkout-btn');
       checkout.setAttribute('href', 'home.html');
       checkout.textContent = 'Back to home';
       checkout.style.justifyContent = 'center';
     }
   }
-  document.querySelectorAll('.cart-item .remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const item = btn.closest('.cart-item');
-      const label = item.previousElementSibling;
-      const next = item.nextElementSibling;
-      // drop the stall heading too if this was its only item
-      if (label && label.classList.contains('cart-stall-label') &&
-          !(next && next.classList.contains('cart-item'))) label.remove();
-      item.remove();
-      updateTotals();
-    });
+
+  function render() {
+    listEl.innerHTML = Cart.byStall().map(g =>
+      `<div class="cart-stall-label">${escapeHtml(g.stall.name)}</div>` + g.items.map(itemRow).join('')
+    ).join('');
+    updateTotals();
+  }
+
+  listEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const index = Number(btn.closest('.cart-item').dataset.index);
+    const item = Cart.items()[index];
+    const act = btn.dataset.act;
+    const noteInput = listEl.querySelector('.cart-note');                 // the open editor, if any
+    if (noteInput && editing !== null) Cart.update(editing, { note: noteInput.value.trim() });   // keep a half-typed note
+    if (act === 'remove') { Cart.remove(index); editing = null; }
+    else if (act === 'edit') editing = index;
+    else if (act === 'done') editing = null;
+    else if (act === 'minus' && item.qty > 1) Cart.update(index, { qty: item.qty - 1 });
+    else if (act === 'plus' && item.qty < 20) Cart.update(index, { qty: item.qty + 1 });
+    render();
   });
+
+  render();
 })();
 </script>
 </body>
