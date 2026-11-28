@@ -1,51 +1,3 @@
-// ── Temporary data ──
-const ORDER = {
-  ref: 'KTN-90214',
-  stall: "Lola's Silog",
-  pickupTime: '12:00',
-  table: 'Table 12',
-  tableDetail: '12:00 – 12:45 · Dine-in',
-  total: 150,
-  items: [
-    { name: "Lola's Silog", price: 85 },
-    { name: 'Kape Kanto',   price: 60 },
-    { name: 'Service fee',  price: 5, soft: true }
-  ],
-  status: 'Preparing',
-  statusSub: 'Ready in about 6 minutes',
-  statusStep: 3,
-  statusTotal: 5,
-  counter: 'Counter 2',
-  paymentMethod: 'GCash',
-  timeline: [
-    { title: 'Order placed',       sub: '11:04' },
-    { title: 'Payment confirmed',  sub: '11:04 · GCash' },
-    { title: 'Preparing',          sub: "11:06 · Lola's Silog" },
-    { title: 'Ready for pickup',   pending: true },
-    { title: 'Completed',          pending: true }
-  ]
-};
-
-const PICKUP_SLOTS = {
-  Morning: [
-    { time: '7:00' }, { time: '7:15' }, { time: '7:30' }, { time: '7:45' },
-    { time: '8:00' }, { time: '8:15' }, { time: '8:30', disabled: true }, { time: '8:45' },
-    { time: '9:00' }, { time: '9:15' }, { time: '9:30' }, { time: '9:45' },
-    { time: '10:00', disabled: true }, { time: '10:15' }, { time: '10:30' }, { time: '10:45' }
-  ],
-  Lunch: [
-    { time: '11:00' }, { time: '11:15' }, { time: '11:30' }, { time: '11:45' },
-    { time: '12:00', selected: true }, { time: '12:15' }, { time: '12:30', disabled: true }, { time: '12:45' }
-  ],
-  Afternoon: [
-    { time: '1:00' }, { time: '1:15' }, { time: '1:30' }, { time: '1:45' },
-    { time: '2:00' }, { time: '2:15' }, { time: '2:30' }, { time: '2:45', disabled: true },
-    { time: '3:00' }, { time: '3:15' }, { time: '3:30' }, { time: '3:45' },
-    { time: '4:00' }, { time: '4:15' }, { time: '4:30', disabled: true }, { time: '4:45' },
-    { time: '5:00' }, { time: '5:15' }, { time: '5:30' }, { time: '5:45' }
-  ]
-};
-
 const NAV_LINKS = [
   { label: 'Home',    href: 'home.html',   activeOn: ['home'] },
   { label: 'Reserve', href: 'reservations.html', activeOn: ['reserve', 'reservations', 'reservation-confirmed'] },
@@ -87,26 +39,46 @@ function goBack(fallback) {
 // ── Render helpers ──
 function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
 
-function renderPickupSlots() {
+// ── Checkout page ──
+// Pickup slots: GET /pickup-slots for the stalls in the tray. Items and totals come from the tray (Cart).
+let checkoutSlots = null;
+
+function selectedSlot() {
+  const btn = document.querySelector('.pickup-grid .slot[aria-pressed="true"]');
+  return btn ? { date: checkoutSlots.date, time: btn.dataset.time } : null;
+}
+
+function renderPickupSlots(data) {
   const container = document.getElementById('pickup-slots');
-  if (!container) return;
-  const periods = Object.keys(PICKUP_SLOTS);
+  checkoutSlots = data;
+  const prefs = Cart.prefs();
+  const all = data.periods.flatMap(p => p.slots);
+  // keep the student's earlier choice if it's still free, otherwise the first free slot
+  const keep = prefs.pickup_date === data.date && all.find(s => s.time === prefs.pickup_time && s.available);
+  const chosen = keep ? keep.time : (all.find(s => s.available) || {}).time;
+  const openPeriod = Math.max(0, data.periods.findIndex(p => p.slots.some(s => s.time === chosen)));
+  const days = (data.days || []).map(d =>
+    `<button class="chip${d.date === data.date ? ' active' : ''}" type="button" data-date="${escapeHtml(d.date)}" aria-pressed="${d.date === data.date}">${escapeHtml(d.label)}</button>`
+  ).join('');
   container.innerHTML = `
+    ${days ? `<div class="chip-row pickup-days" role="group" aria-label="Pickup day">${days}</div>` : ''}
     <div class="pickup-tabs" role="tablist">
-      ${periods.map((p, i) => `<button class="pickup-tab" role="tab" data-period="${p}" aria-selected="${i === 1 ? 'true' : 'false'}">${p}</button>`).join('')}
+      ${data.periods.map((p, i) => `<button class="pickup-tab" role="tab" data-period="${i}" aria-selected="${i === openPeriod}">${escapeHtml(p.name)}</button>`).join('')}
     </div>
     <div class="pickup-panels">
-      ${periods.map((p, i) => `
-        <div class="pickup-panel" data-period="${p}"${i !== 1 ? ' hidden' : ''}>
+      ${data.periods.map((p, i) => `
+        <div class="pickup-panel" data-period="${i}"${i !== openPeriod ? ' hidden' : ''}>
           <div class="slot-grid pickup-grid" role="group">
-            ${PICKUP_SLOTS[p].map(s => s.disabled
-              ? `<button class="slot" type="button" disabled>${s.time}</button>`
-              : `<button class="slot" type="button" data-time="${s.time}" aria-pressed="${s.selected ? 'true' : 'false'}">${s.time}</button>`
+            ${p.slots.map(s => s.available
+              ? `<button class="slot" type="button" data-time="${escapeHtml(s.time)}" aria-pressed="${s.time === chosen}">${escapeHtml(s.label)}</button>`
+              : `<button class="slot" type="button" disabled>${escapeHtml(s.label)}</button>`
             ).join('')}
           </div>
         </div>
       `).join('')}
     </div>`;
+  if (chosen) Cart.setPrefs({ pickup_date: data.date, pickup_time: chosen });
+  if (!chosen) showToast('No pickup times left for ' + (data.date_label || 'this day') + '. Try another day.');
   container.querySelectorAll('.pickup-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       container.querySelectorAll('.pickup-tab').forEach(t => t.setAttribute('aria-selected', 'false'));
@@ -114,47 +86,149 @@ function renderPickupSlots() {
       container.querySelectorAll('.pickup-panel').forEach(p => p.hidden = p.dataset.period !== tab.dataset.period);
     });
   });
+  container.querySelectorAll('.pickup-days .chip').forEach(chip => {
+    chip.addEventListener('click', () => loadPickupSlots(chip.dataset.date));
+  });
 }
 
-// Item rows used by the checkout and receipt summaries
-function summaryRows(totalLabel) {
-  return ORDER.items.map(it => `
-      <div class="summary-row"><span${it.soft ? ' style="color:var(--ink-soft);"' : ''}>${it.name}</span><span${it.soft ? ' style="color:var(--ink-soft);"' : ''}>₱${it.price}</span></div>
-    `).join('') + `<div class="summary-row total"><span>${totalLabel}</span><span>₱${ORDER.total}</span></div>`;
+let slotRequest = 0;
+function loadPickupSlots(date) {
+  const id = ++slotRequest;
+  return Api.get('/pickup-slots', { stalls: Cart.stallIds().join(','), date: date })
+    .then(data => { if (id === slotRequest) renderPickupSlots(data); })
+    .catch(err => {
+      if (id !== slotRequest) return;
+      // a day saved earlier may be in the past now: fall back to today (or tomorrow)
+      if (date && err.status === 422) { Cart.setPrefs({ pickup_date: null, pickup_time: null }); return loadPickupSlots(); }
+      showToast(err.message);
+    });
 }
 
-// Remember how the student paid, so the receipt can say so
-function savePaymentMethod(method) {
-  try { sessionStorage.setItem('kantinaPayment', method); } catch (e) {}
+// Item rows used by the checkout and receipt summaries: [{name, qty, addons, line_total}]
+function summaryRows(items, fee, total, totalLabel) {
+  const soft = ' style="color:var(--ink-soft);"';
+  return items.map(it => {
+    const extras = (it.addons || []).map(a => a.name).join(', ');
+    return `<div class="summary-row"><span>${it.qty}× ${escapeHtml(it.name)}${extras ? `<span${soft}> + ${escapeHtml(extras)}</span>` : ''}</span><span>${Fmt.peso(it.line_total)}</span></div>`;
+  }).join('')
+    + `<div class="summary-row"><span${soft}>Service fee</span><span${soft}>${Fmt.peso(fee)}</span></div>`
+    + `<div class="summary-row total"><span>${totalLabel}</span><span>${Fmt.peso(total)}</span></div>`;
 }
-function getPaymentMethod() {
-  try { return sessionStorage.getItem('kantinaPayment') || 'gcash'; } catch (e) { return 'gcash'; }
+
+function paymentMethod() {
+  const selected = document.querySelector('#payment-group [aria-checked="true"]');
+  return selected ? selected.dataset.value : 'gcash';
+}
+
+function updatePayButton() {
+  const payBtn = document.getElementById('pay-btn');
+  if (payBtn) payBtn.textContent = paymentMethod() === 'counter'
+    ? 'Confirm order · ' + Fmt.peso(Cart.total())
+    : 'Pay ' + Fmt.peso(Cart.total()) + ' →';
 }
 
 function renderCheckoutInfo() {
-  const items = document.getElementById('checkout-items');
-  if (items) items.innerHTML = summaryRows('Total');
-  setText('table-name', ORDER.table);
-  setText('table-detail', ORDER.tableDetail);
-  setText('checkout-total', '₱' + ORDER.total);
-  setText('checkout-summary', ORDER.items.length + ' items · ' + ORDER.table);
-  const payBtn = document.getElementById('pay-btn');
-  if (payBtn) payBtn.textContent = 'Pay ₱' + ORDER.total + ' →';
+  const itemsEl = document.getElementById('checkout-items');
+  if (!itemsEl) return;
+  const user = Auth.requireStudent();
+  if (!Cart.count()) { location.replace('cart.html'); return; }
+  const pending = Cart.prefs().pending_checkout;
+  if (pending) {
+    Api.get('/checkouts/' + encodeURIComponent(pending))
+      .then(res => {
+        if (res.checkout.payment_status === 'unpaid') {
+          showToast('Finish or cancel your GCash payment first');
+          setTimeout(() => { location.replace('payment.html?ref=' + encodeURIComponent(pending)); }, 900);
+        } else {
+          Cart.setPrefs({ pending_checkout: null });
+        }
+      })
+      .catch(() => Cart.setPrefs({ pending_checkout: null }));
+  }
+  setText('checkout-title', 'Almost there, ' + user.first_name + '!');
+  const items = Cart.items().map(i => Object.assign({}, i, { line_total: Cart.lineTotal(i) }));
+  itemsEl.innerHTML = summaryRows(items, Cart.SERVICE_FEE, Cart.total(), 'Total');
+  setText('checkout-total', Fmt.peso(Cart.total()));
+  updatePayButton();
+  loadPickupSlots(Cart.prefs().pickup_date);
+
+  // Table: the reservation saved from reserve.html?from=checkout, otherwise takeout
+  const ref = Cart.prefs().reservation_ref;
+  const takeout = () => {
+    setText('table-name', 'Takeout · no table');
+    setText('table-detail', 'Reserve a table if you’re eating here');
+    setText('checkout-summary', Cart.count() + (Cart.count() === 1 ? ' item' : ' items') + ' · takeout');
+  };
+  if (!ref) { takeout(); return; }
+  Api.get('/reservations/' + encodeURIComponent(ref))
+    .then(res => {
+      const r = res.reservation;
+      if (!['booked', 'checked_in'].includes(r.status)) { Cart.setPrefs({ reservation_ref: null }); takeout(); return; }
+      setText('table-name', 'Table ' + r.table);
+      setText('table-detail', r.day_label + ' ' + r.window + ' · ' + r.party_size + (r.party_size === 1 ? ' person' : ' people'));
+      setText('checkout-summary', Cart.count() + (Cart.count() === 1 ? ' item' : ' items') + ' · table ' + r.table);
+    })
+    .catch(() => { Cart.setPrefs({ reservation_ref: null }); takeout(); });
 }
 
+// ── GCash page ──
+// GET /checkouts/{ref} for the amount; Authorize / Cancel → POST /payments/{ref}/confirm
 function renderGcashInfo() {
-  setText('gcash-amount', '₱' + ORDER.total + '.00');
-  setText('gcash-ref', 'Ref #' + ORDER.ref);
+  if (!document.getElementById('gcash-amount')) return;
+  Auth.requireStudent();
+  const ref = qs('ref');
+  if (!ref) { location.replace('checkout.html'); return; }
+  Api.get('/checkouts/' + encodeURIComponent(ref))
+    .then(res => {
+      const c = res.checkout;
+      if (c.payment_status === 'paid') {
+        if (Cart.prefs().pending_checkout === c.ref) Cart.clear();
+        location.replace('receipt.html?ref=' + encodeURIComponent(c.ref));
+        return;
+      }
+      setText('gcash-amount', Fmt.peso(c.total));
+      setText('gcash-ref', 'Ref #' + c.ref);
+      if (c.payment_status === 'cancelled') {
+        document.getElementById('authorize-btn').disabled = true;
+        showToast('This payment was cancelled. Go back to checkout to order again.');
+      }
+    })
+    .catch(err => showToast(err.message));
 }
+
+// ── Receipt page ──
+// GET /checkouts/{ref}: items, totals, pickup time and the order refs per stall
+let receiptCheckout = null;
 
 function renderReceipt() {
-  setText('receipt-sub', 'Pickup at ' + ORDER.pickupTime + ' · ' + ORDER.counter);
-  setText('receipt-ref', 'Show this at the counter · Ref #' + ORDER.ref);
   const summaryBox = document.getElementById('receipt-summary');
-  if (summaryBox) {
-    const label = getPaymentMethod() === 'counter' ? 'Pay at the counter' : 'Total paid';
-    summaryBox.innerHTML = summaryRows(label);
-  }
+  if (!summaryBox) return;
+  const user = Auth.requireStudent();
+  setText('receipt-title', 'You’re all set, ' + user.first_name + '!');
+  const ref = qs('ref');
+  if (!ref) { location.replace('orders.html'); return; }
+  Api.get('/checkouts/' + encodeURIComponent(ref))
+    .then(res => {
+      const c = receiptCheckout = res.checkout;
+      const live = c.orders.filter(o => o.status !== 'cancelled');
+      setText('receipt-ref', 'Show this at the counter · Ref #' + c.ref);
+      if (!live.length) {
+        setText('receipt-title', 'This order was cancelled');
+        setText('receipt-sub', c.orders[0] && c.orders[0].cancel_reason ? c.orders[0].cancel_reason : 'Nothing was charged');
+      } else {
+        setText('receipt-sub', 'Pickup ' + c.pickup_label + ' · ' + (live.length === 1 ? live[0].counter : live.length + ' counters'));
+      }
+      const label = !live.length ? 'Cancelled'
+        : c.payment_status === 'paid' ? 'Total paid'
+        : c.payment_method === 'counter' ? 'Pay at the counter' : 'Awaiting payment';
+      const liveStalls = live.map(o => o.stall.name);
+      const items = live.length ? c.items.filter(it => liveStalls.includes(it.stall_name)) : c.items;
+      summaryBox.innerHTML = summaryRows(items, c.service_fee, c.total, label);
+    })
+    .catch(err => {
+      setText('receipt-sub', err.message);
+      summaryBox.innerHTML = '';
+    });
 }
 
 // ── Tracking page ──
@@ -269,9 +343,14 @@ function renderOrders() {
   fill(history, 'history', true, 'No past orders yet.');
 }
 
-// ── Checkout page ──
+// ── Start the page ──
+// Back/forward can restore checkout from the browser's cache without running any code,
+// which would skip the unpaid-GCash check and allow a second order: reload it instead.
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && document.getElementById('checkout-items')) location.reload();
+});
+
 document.addEventListener('DOMContentLoaded', () => {
-  renderPickupSlots();
   renderCheckoutInfo();
   renderGcashInfo();
   renderReceipt();
@@ -285,6 +364,7 @@ document.addEventListener('click', (e) => {
   if (!btn || btn.disabled) return;
   allSlots().forEach(s => s.setAttribute('aria-pressed', 'false'));
   btn.setAttribute('aria-pressed', 'true');
+  Cart.setPrefs({ pickup_date: checkoutSlots.date, pickup_time: btn.dataset.time });
 });
 
 if (document.querySelector('#payment-group')) {
@@ -294,8 +374,7 @@ if (document.querySelector('#payment-group')) {
   function selectPayment(el) {
     payOptions.forEach(o => o.setAttribute('aria-checked', 'false'));
     el.setAttribute('aria-checked', 'true');
-    const payBtn = document.getElementById('pay-btn');
-    payBtn.textContent = el.dataset.value === 'counter' ? 'Confirm order · ₱' + ORDER.total : 'Pay ₱' + ORDER.total + ' →';
+    updatePayButton();
   }
 
   payOptions.forEach(opt => {
@@ -306,34 +385,84 @@ if (document.querySelector('#payment-group')) {
   });
 }
 
+// POST /orders → GCash: payment page; counter: receipt (the tray is cleared once the order exists)
 function handlePay() {
-  const paymentGroup = document.getElementById('payment-group');
-  const selected = paymentGroup.querySelector('[aria-checked="true"]');
-  if (selected && selected.dataset.value === 'counter') {
-    savePaymentMethod('counter');
-    showToast('Order placed — pay ₱' + ORDER.total + ' at the counter');
-    setTimeout(() => { window.location.href = 'receipt.html'; }, 900);
-  } else {
-    savePaymentMethod('gcash');
-    window.location.href = 'payment.html';
-  }
+  const slot = selectedSlot();
+  if (!slot) { showToast('Pick a pickup time first'); return; }
+  const method = paymentMethod();
+  const payBtn = document.getElementById('pay-btn');
+  payBtn.disabled = true;
+  payBtn.textContent = 'Placing order…';
+  Api.post('/orders', {
+    items: Cart.orderItems(),
+    pickup_date: slot.date,
+    pickup_time: slot.time,
+    payment_method: method,
+    reservation_ref: Cart.prefs().reservation_ref || undefined
+  })
+    .then(res => {
+      const ref = encodeURIComponent(res.checkout.ref);
+      if (method === 'counter') {
+        Cart.clear();
+        location.href = 'receipt.html?ref=' + ref;
+      } else {
+        Cart.setPrefs({ pending_checkout: res.checkout.ref });
+        location.href = 'payment.html?ref=' + ref;
+      }
+    })
+    .catch(err => {
+      showToast(err.message);
+      payBtn.disabled = false;
+      updatePayButton();
+      if (err.code === 'slot_full') loadPickupSlots(slot.date);
+    });
 }
 
 // ── GCash page ──
+function confirmPayment(result) {
+  const ref = qs('ref');
+  const buttons = document.querySelectorAll('.footer-stack .btn');
+  buttons.forEach(b => b.disabled = true);
+  return Api.post('/payments/' + encodeURIComponent(ref) + '/confirm', { result: result })
+    .catch(err => {
+      showToast(err.message);
+      buttons.forEach(b => b.disabled = false);
+      // an expired or already-cancelled checkout can't be paid: send them back to order again
+      if (['payment_expired', 'checkout_cancelled'].includes(err.code)) {
+        Cart.setPrefs({ pending_checkout: null });
+        setTimeout(() => { location.href = 'checkout.html'; }, 1500);
+      }
+      throw err;
+    });
+}
+
 function handleAuthorize() {
   const btn = document.getElementById('authorize-btn');
-  btn.disabled = true;
   btn.textContent = 'Authorizing…';
-  setTimeout(() => { window.location.href = 'receipt.html'; }, 900);
+  confirmPayment('authorized')
+    .then(() => {
+      Cart.clear();
+      location.href = 'receipt.html?ref=' + encodeURIComponent(qs('ref'));
+    })
+    .catch(() => { btn.textContent = 'Authorize payment'; });
 }
 
 function handleCancel() {
-  showToast('Payment cancelled');
-  setTimeout(() => { window.location.href = 'checkout.html'; }, 900);
+  confirmPayment('cancelled')
+    .then(() => {
+      Cart.setPrefs({ pending_checkout: null });
+      showToast('Payment cancelled');   // the tray is kept so they can try again
+      setTimeout(() => { location.href = 'checkout.html'; }, 900);
+    })
+    .catch(() => {});
 }
 
 // ── Receipt page ──
-function trackOrder() { window.location.href = 'orders.html'; }   // #14 passes the real order: tracking.html?ref=…
+// One stall: its tracking page. Several stalls: the orders list.
+function trackOrder() {
+  const live = receiptCheckout ? receiptCheckout.orders.filter(o => o.status !== 'cancelled') : [];
+  window.location.href = live.length === 1 ? 'tracking.html?ref=' + encodeURIComponent(live[0].ref) : 'orders.html';
+}
 function backToHome() { window.location.href = 'home.html'; }
 
 // ── Tracking page ──
