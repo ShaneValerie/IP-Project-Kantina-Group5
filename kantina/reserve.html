@@ -31,10 +31,10 @@
 
   <header class="flow-head">
   <div class="flow-head-top">
-    <a class="icon-btn" href="home.html" aria-label="Back to home"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    <a class="icon-btn" href="home.html" id="reserve-back" aria-label="Back"><svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
   <div class="flow-head-text">
-    <h1>Save a seat, Ana</h1>
+    <h1 id="reserve-title">Save a seat</h1>
     <p>Pick a day, time and table</p>
   </div>
   </header>
@@ -43,12 +43,7 @@
     <div class="rsv-body">
 
       <div class="section-label">Day</div>
-      <div class="rsv-chip-row" id="day-group" role="group" aria-label="Day">
-        <button class="rsv-chip" type="button" data-day="Today" aria-pressed="true">Today</button>
-        <button class="rsv-chip" type="button" data-day="Tue 2" aria-pressed="false">Tue 2</button>
-        <button class="rsv-chip" type="button" data-day="Wed 3" aria-pressed="false">Wed 3</button>
-        <button class="rsv-chip" type="button" data-day="Thu 4" aria-pressed="false">Thu 4</button>
-      </div>
+      <div class="rsv-chip-row" id="day-group" role="group" aria-label="Day"></div>
 
       <div class="rsv-reserve-cols">
         <div>
@@ -57,39 +52,17 @@
             <button type="button" data-party="1" aria-pressed="false">1</button>
             <button type="button" data-party="2" aria-pressed="true">2</button>
             <button type="button" data-party="4" aria-pressed="false">4</button>
-            <button type="button" data-party="6+" aria-pressed="false">6+</button>
+            <button type="button" data-party="6" aria-pressed="false">6</button>
           </div>
 
           <div class="section-label">Time slot</div>
-          <div class="rsv-slots" id="slot-group" role="group" aria-label="Time slot">
-            <button class="rsv-slot" type="button" data-time="11:00" aria-pressed="false">11:00</button>
-            <button class="rsv-slot" type="button" data-time="11:30" aria-pressed="false">11:30</button>
-            <button class="rsv-slot" type="button" data-time="12:00" aria-pressed="true">12:00</button>
-            <button class="rsv-slot" type="button" disabled aria-disabled="true">12:30</button>
-            <button class="rsv-slot" type="button" data-time="13:00" aria-pressed="false">13:00</button>
-            <button class="rsv-slot" type="button" disabled aria-disabled="true">13:30</button>
-            <button class="rsv-slot" type="button" data-time="14:00" aria-pressed="false">14:00</button>
-            <button class="rsv-slot" type="button" data-time="14:30" aria-pressed="false">14:30</button>
-          </div>
+          <div class="rsv-slots" id="slot-group" role="group" aria-label="Time slot"></div>
         </div>
 
         <div>
           <div class="section-label">Pick a table · Lawrence Bunzel Canteen</div>
           <div class="rsv-floor">
-            <div class="rsv-floor-grid" id="table-group" role="group" aria-label="Floor plan">
-              <button class="rsv-table" type="button" data-table="T-01" aria-pressed="false">T-01<small>2 seats</small></button>
-              <button class="rsv-table" type="button" disabled aria-disabled="true">T-02<small>taken</small></button>
-              <button class="rsv-table" type="button" data-table="T-03" aria-pressed="false">T-03<small>2 seats</small></button>
-              <button class="rsv-table" type="button" data-table="T-04" aria-pressed="false">T-04<small>4 seats</small></button>
-              <button class="rsv-table" type="button" disabled aria-disabled="true">T-07<small>taken</small></button>
-              <button class="rsv-table" type="button" data-table="T-08" aria-pressed="false">T-08<small>4 seats</small></button>
-              <button class="rsv-table" type="button" data-table="T-11" aria-pressed="false">T-11<small>2 seats</small></button>
-              <button class="rsv-table" type="button" data-table="T-12" aria-pressed="true">T-12<small>2 seats</small></button>
-              <button class="rsv-table" type="button" data-table="T-14" aria-pressed="false">T-14<small>6 seats</small></button>
-              <button class="rsv-table" type="button" disabled aria-disabled="true">T-15<small>taken</small></button>
-              <button class="rsv-table" type="button" data-table="T-16" aria-pressed="false">T-16<small>4 seats</small></button>
-              <button class="rsv-table" type="button" data-table="T-18" aria-pressed="false">T-18<small>6 seats</small></button>
-            </div>
+            <div class="rsv-floor-grid" id="table-group" role="group" aria-label="Floor plan"><p class="load-msg">Loading tables…</p></div>
             <div class="rsv-legend">
               <span><i></i>Free</span>
               <span><i class="picked"></i>Your pick</span>
@@ -108,7 +81,7 @@
   </div>
 
   <div class="rsv-footer">
-    <a class="btn btn-primary" href="reservation-confirmed.html" id="hold-btn">Hold T-12 · 12:00</a>
+    <button class="btn btn-primary" type="button" id="hold-btn" disabled>Pick a table</button>
   </div>
 
   <div class="tabbar">
@@ -132,6 +105,139 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
+<script src="js/api.js"></script>
 <script src="app.js"></script>
+<script>
+// Reserve: GET /tables/availability for the chosen day, time and party size; Hold → POST /reservations.
+// Opened from checkout (?from=checkout), the new reservation is saved on the tray and we go back there.
+(function () {
+  const user = Auth.requireStudent();
+  const fromCheckout = qs('from') === 'checkout';
+  document.getElementById('reserve-title').textContent = 'Save a seat, ' + user.first_name;
+  const back = document.getElementById('reserve-back');
+  back.href = fromCheckout ? 'checkout.html' : 'reservations.html';
+
+  const dayEl = document.getElementById('day-group');
+  const slotEl = document.getElementById('slot-group');
+  const tableEl = document.getElementById('table-group');
+  const holdBtn = document.getElementById('hold-btn');
+  const state = { date: null, time: null, party: 2, table: null };
+  let request = 0;
+  let holding = false;   // a POST /reservations is running: keep Hold locked
+
+  function updateHold() {
+    if (holding) return;
+    holdBtn.disabled = !state.table;
+    holdBtn.textContent = state.table ? 'Hold ' + state.table + ' · ' + Fmt.ampm(state.time) : 'Pick a table';
+  }
+
+  function tableLabel(t) {
+    if (t.status === 'taken') return 'taken';
+    if (t.status === 'blocked') return 'not available';
+    if (!t.fits) return t.seats + ' seats · too small';
+    return t.seats + ' seats';
+  }
+
+  function render(res) {
+    state.date = res.date;
+    state.time = res.time;
+    dayEl.innerHTML = res.days.map(d =>
+      `<button class="rsv-chip" type="button" data-date="${escapeHtml(d.date)}" aria-pressed="${d.date === res.date}">${escapeHtml(d.label)}</button>`).join('');
+    const past = {};
+    (res.slot_states || []).forEach(s => { past[s.time] = s.past; });
+    slotEl.innerHTML = res.slots.map(t => past[t]
+      ? `<button class="rsv-slot" type="button" disabled aria-disabled="true">${Fmt.time12(t)}</button>`
+      : `<button class="rsv-slot" type="button" data-time="${escapeHtml(t)}" aria-pressed="${t === res.time}">${Fmt.time12(t)}</button>`).join('');
+    // keep the picked table only if it is still free and big enough
+    const free = res.tables.filter(t => t.status === 'free' && t.fits).map(t => t.code);
+    if (!free.includes(state.table)) state.table = null;
+    tableEl.innerHTML = res.tables.map(t => {
+      const pos = `grid-row:${Number(t.row)};grid-column:${Number(t.col)};`;
+      const usable = t.status === 'free' && t.fits;
+      return usable
+        ? `<button class="rsv-table" type="button" style="${pos}" data-table="${escapeHtml(t.code)}" aria-pressed="${t.code === state.table}">${escapeHtml(t.code)}<small>${tableLabel(t)}</small></button>`
+        : `<button class="rsv-table" type="button" style="${pos}" disabled aria-disabled="true">${escapeHtml(t.code)}<small>${tableLabel(t)}</small></button>`;
+    }).join('');
+    updateHold();
+  }
+
+  function load() {
+    const id = ++request;
+    return Api.get('/tables/availability', { date: state.date, time: state.time, party: state.party })
+      .then(res => {
+        if (id !== request) return;          // a newer choice is already loading
+        // the chosen time has passed (e.g. late in the day): jump to the next free time or day
+        const states = res.slot_states || [];
+        const current = states.find(s => s.time === res.time);
+        if (current && current.past) {
+          const next = states.find(s => !s.past);
+          const nextDay = res.days[res.days.findIndex(d => d.date === res.date) + 1];
+          if (next) { state.date = res.date; state.time = next.time; return load(); }
+          if (nextDay) { state.date = nextDay.date; state.time = null; return load(); }
+        }
+        render(res);
+      })
+      .catch(err => {
+        if (id !== request) return;
+        // a day or time from an older visit may no longer be allowed: start again from the defaults
+        if (err.status === 422 && (state.date || state.time)) { state.date = state.time = null; return load(); }
+        tableEl.innerHTML = `<p class="load-msg">${escapeHtml(err.message)}</p>`;
+      });
+  }
+
+  dayEl.addEventListener('click', (e) => {
+    const chip = e.target.closest('.rsv-chip');
+    if (!chip) return;
+    state.date = chip.dataset.date;
+    state.time = null;
+    load();
+  });
+  slotEl.addEventListener('click', (e) => {
+    const slot = e.target.closest('.rsv-slot');
+    if (!slot || slot.disabled) return;
+    state.time = slot.dataset.time;
+    load();
+  });
+  document.getElementById('party-group').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-party]');
+    if (!btn) return;
+    document.querySelectorAll('#party-group button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+    state.party = Number(btn.dataset.party);
+    load();
+  });
+  tableEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.rsv-table');
+    if (!btn || btn.disabled) return;
+    state.table = btn.dataset.table;
+    tableEl.querySelectorAll('.rsv-table[data-table]').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+    updateHold();
+  });
+
+  holdBtn.addEventListener('click', () => {
+    if (!state.table || holding) return;
+    holding = true;
+    holdBtn.disabled = true;
+    holdBtn.textContent = 'Holding…';
+    Api.post('/reservations', { table: state.table, date: state.date, time: state.time, party_size: state.party })
+      .then(res => {
+        const ref = res.reservation.ref;
+        if (fromCheckout) {
+          Cart.setPrefs({ reservation_ref: ref });
+          location.href = 'checkout.html';
+        } else {
+          location.href = 'reservation-confirmed.html?ref=' + encodeURIComponent(ref);
+        }
+      })
+      .catch(err => {
+        holding = false;
+        showToast(err.message);
+        updateHold();
+        load();                              // someone may have just taken the table
+      });
+  });
+
+  load();
+})();
+</script>
 </body>
 </html>

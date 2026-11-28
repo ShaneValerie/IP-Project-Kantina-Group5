@@ -34,9 +34,9 @@
     <span class="flow-head-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
   </div>
   <div class="flow-head-text">
-    <span class="flow-head-meta">Reservation confirmed</span>
-    <h1>Table <span id="rc-table">T-12</span> is yours!</h1>
-    <p><span id="rc-window">Today 12:00 – 12:45</span> · <span id="rc-party">2 people</span></p>
+    <span class="flow-head-meta" id="rc-status">Reservation confirmed</span>
+    <h1 id="rc-title">Loading…</h1>
+    <p id="rc-sub"></p>
   </div>
   </header>
 
@@ -47,10 +47,10 @@
         <p class="rsv-qr-note">Show this to check in at your table</p>
       </div>
       <div class="rsv-detail">
-        <div class="rsv-detail-row"><span>Reference</span><strong id="rc-ref">#KTN-R4821</strong></div>
-        <div class="rsv-detail-row"><span>Table</span><strong id="rc-table-2">T-12 · Lawrence Bunzel Canteen</strong></div>
-        <div class="rsv-detail-row"><span>Day and time</span><strong id="rc-daytime">Today · 12:00</strong></div>
-        <div class="rsv-detail-row"><span>Party size</span><strong id="rc-party-2">2 people</strong></div>
+        <div class="rsv-detail-row"><span>Reference</span><strong id="rc-ref"></strong></div>
+        <div class="rsv-detail-row"><span>Table</span><strong id="rc-table-2"></strong></div>
+        <div class="rsv-detail-row"><span>Day and time</span><strong id="rc-daytime"></strong></div>
+        <div class="rsv-detail-row"><span>Party size</span><strong id="rc-party-2"></strong></div>
       </div>
 
       <div class="rsv-note">
@@ -59,9 +59,9 @@
       </div>
 
       <div class="rsv-actions">
-        <a class="btn btn-primary" href="stall.html">Add food to this table</a>
+        <a class="btn btn-primary" href="home.html" id="rc-food">Add food to this table</a>
         <button class="btn btn-secondary" type="button" id="rc-calendar">Add to calendar</button>
-        <a class="btn btn-quiet" href="reservations.html" id="rc-cancel">Cancel reservation</a>
+        <button class="btn btn-quiet" type="button" id="rc-cancel" hidden>Cancel reservation</button>
       </div>
 
       <div style="text-align:center; margin:22px 0 10px;">
@@ -91,6 +91,75 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
+<script src="js/api.js"></script>
 <script src="app.js"></script>
+<script>
+// Reservation details: GET /reservations/{ref}. Cancel → DELETE /reservations/{ref}.
+// "Add food to this table" saves the reservation on the tray so checkout shows the table.
+(function () {
+  Auth.requireStudent();
+  const ref = qs('ref');
+  if (!ref) { location.replace('reservations.html'); return; }
+  const set = (id, text) => { document.getElementById(id).textContent = text; };
+  const people = n => n + (n === 1 ? ' person' : ' people');
+  let current = null;
+
+  function render(r) {
+    current = r;
+    const active = ['booked', 'checked_in'].includes(r.status);
+    set('rc-status', active ? (r.status === 'checked_in' ? 'Checked in' : 'Reservation confirmed') : r.status_label);
+    set('rc-title', active ? 'Table ' + r.table + ' is yours!' : 'Table ' + r.table + ' \u00b7 ' + r.status_label);
+    set('rc-sub', r.day_label + ' ' + Fmt.ampm(r.time) + ' \u2013 ' + Fmt.ampm(r.end_time) + ' \u00b7 ' + people(r.party_size));
+    set('rc-ref', '#' + r.ref);
+    set('rc-table-2', r.table + ' \u00b7 ' + r.seats + ' seats \u00b7 Lawrence Bunzel Canteen');
+    set('rc-daytime', r.day_label + ' \u00b7 ' + Fmt.ampm(r.time));
+    set('rc-party-2', people(r.party_size));
+    document.getElementById('rc-cancel').hidden = !r.can_cancel;
+    document.getElementById('rc-food').hidden = !active;
+    document.getElementById('rc-calendar').hidden = !active;
+  }
+
+  Api.get('/reservations/' + encodeURIComponent(ref))
+    .then(res => render(res.reservation))
+    .catch(err => { set('rc-title', err.status === 404 ? 'Reservation not found' : 'Couldn\u2019t load this reservation'); set('rc-sub', err.message); });
+
+  document.getElementById('rc-food').addEventListener('click', () => {
+    if (current) Cart.setPrefs({ reservation_ref: current.ref });
+  });
+
+  // Add to calendar: a small .ics file the phone or laptop calendar can open
+  document.getElementById('rc-calendar').addEventListener('click', () => {
+    if (!current) return;
+    const stamp = (d, t) => d.replace(/-/g, '') + 'T' + t.replace(':', '') + '00';
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Kantina//Reservations//EN', 'BEGIN:VEVENT',
+      'UID:' + current.ref + '@kantina',
+      'DTSTART;TZID=Asia/Manila:' + stamp(current.date, current.time),
+      'DTEND;TZID=Asia/Manila:' + stamp(current.date, current.end_time),
+      'SUMMARY:Kantina table ' + current.table,
+      'LOCATION:Lawrence Bunzel Canteen',
+      'DESCRIPTION:Reservation ' + current.ref + ' for ' + people(current.party_size) + '. Held 10 minutes past the start time.',
+      'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    link.download = current.ref + '.ics';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  });
+
+  const cancelBtn = document.getElementById('rc-cancel');
+  cancelBtn.addEventListener('click', () => {
+    if (!confirm('Cancel this reservation?')) return;
+    cancelBtn.disabled = true;
+    Api.del('/reservations/' + encodeURIComponent(ref))
+      .then(res => {
+        if (Cart.prefs().reservation_ref === ref) Cart.setPrefs({ reservation_ref: null });
+        render(res.reservation);
+        showToast('Reservation cancelled');
+      })
+      .catch(err => showToast(err.message))
+      .finally(() => { cancelBtn.disabled = false; });
+  });
+})();
+</script>
 </body>
 </html>
