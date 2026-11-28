@@ -43,9 +43,11 @@ From the browser, always go through `js/api.js` (`Api.get('/stalls')`). It adds 
 | GET | `/reservations/{ref}` | One reservation | Student |
 | POST | `/reservations/{ref}/check-in` | Check in at the table | Student |
 | DELETE | `/reservations/{ref}` | Cancel a reservation | Student |
-| GET | `/me` | Profile, stats and favourite stalls | Student |
+| GET | `/me` | Profile, stats, favourite stalls and loyalty points | Student |
 | PATCH | `/me` | Update name, email or pickup alerts | Student |
 | POST / DELETE | `/me/favourites/{stallId}` | Add / remove a favourite stall | Student |
+| POST | `/feedback` | Send feedback to the canteen (becomes a Kantina CRM ticket) | Student |
+| GET | `/feedback` | My feedback, with the canteen's status and reply | Student |
 | GET | `/seller/orders` | Orders board for the staff member's stall | Staff |
 | PATCH | `/seller/orders/{id}/status` | Move an order: paid → preparing → ready → completed (or cancelled) | Staff |
 | GET | `/seller/menu` | The stall's menu with price and stock | Staff |
@@ -55,9 +57,10 @@ From the browser, always go through `js/api.js` (`Api.get('/stalls')`). It adds 
 | POST / DELETE | `/seller/tables/{code}/block` | Block / unblock a table slot | Staff |
 | GET | `/seller/analytics` | Revenue, orders, top items, peak hours from the ERP (`?range=7` or `30`) | Staff |
 | POST | `/integrations/erp/webhook` | Receives ERP events (HMAC-signed) | Signature |
+| POST | `/integrations/crm/webhook` | Receives CRM events: `customer.updated`, `ticket.updated` (HMAC-signed) | Signature |
 | POST | `/integrations/erp/sync` | Re-read every price and stock level from the ERP | Staff |
-| POST | `/integrations/outbox/retry` | Retry ERP messages that are waiting | Staff |
-| GET | `/integrations/status` | ERP health, outbox, webhook and email logs | Staff |
+| POST | `/integrations/outbox/retry` | Retry ERP and CRM messages that are waiting | Staff |
+| GET | `/integrations/status` | ERP and CRM health, outbox, webhook and email logs | Staff |
 
 ### Kantina ERP API (`/api/v1`, header `X-Api-Key`)
 
@@ -148,12 +151,19 @@ Errors: `422 validation_error` (e.g. missing `order_ref`, negative `amount`).
 ```
 
 #### Webhooks the CRM sends to Kantina
-`POST <kantina>/api/integrations/crm/webhook`, signed like the ERP's (`X-Kantina-Signature`, HMAC-SHA256 with `crm.webhook_secret`).
+`POST <kantina>/api/integrations/crm/webhook`, signed like the ERP's (`X-Kantina-Signature`, HMAC-SHA256 with `crm.webhook_secret`). Kantina verifies the signature, ignores duplicate event ids, and logs every webhook on the integrations status page.
 
 | Event | When | `data` |
 |---|---|---|
-| `customer.updated` | An admin adds or removes points | `{ "customer": { "kantina_user_id": 1, "points": 150, "tier": "Silver" } }` |
-| `ticket.updated` | An admin replies to a ticket or changes its status | `{ "ticket": { "external_ref": "FB-12", "ticket_no": "TCK-0007", "status": "resolved", "reply": "Sorry about that! …" } }` |
+| `customer.updated` | An admin adds or removes points | `{ "customer": { "kantina_user_id": 1, "points": 150, "tier": "Silver" } }` → Kantina saves it on the user (`GET /me` → `loyalty`) |
+| `ticket.updated` | An admin replies to a ticket or changes its status | `{ "ticket": { "external_ref": "FB-12", "ticket_no": "TCK-0007", "status": "resolved", "reply": "Sorry about that! …" } }` → Kantina updates feedback `FB-12` and emails the reply |
+
+**What Kantina sends to the CRM** (through the outbox, retried with backoff if the CRM is offline):
+
+| Outbox event | When | CRM call |
+|---|---|---|
+| `crm.order.completed` (ref `CRM-KTN-…`) | the stall presses **Complete** | `POST /orders` with the order's subtotal as `amount`; the answer's points/tier are saved on the user |
+| `crm.ticket.create` (ref `CRM-FB-…`) | a student sends feedback | `POST /tickets` with `external_ref` = `FB-<feedback id>`; the answer's `ticket_no` is saved on the feedback |
 
 Points earned from orders are **not** sent as webhooks: Kantina already gets the new points and tier in the `POST /orders` response.
 Every webhook is saved first (`crm_webhook_deliveries`), so one that Kantina didn't accept can be resent from **CRM admin → Webhooks to Kantina**.
@@ -368,11 +378,37 @@ Opens 15 minutes before the start time → `{ "reservation": … }`. Too early �
 ```json
 { "user": { …User… },
   "stats": { "orders_this_term": 12, "active_orders": 1, "upcoming_reservations": 1 },
-  "favourites": [ { "id": "lolas-silog", "name": "Lola's Silog", "photo_url": "…" } ] }
+  "favourites": [ { "id": "lolas-silog", "name": "Lola's Silog", "photo_url": "…" } ],
+  "loyalty": { "points": 121, "tier": "Silver" } }
 ```
+`loyalty` is Kantina's copy of the student's points in Kantina CRM. It is updated when the CRM answers a completed order, and by the CRM's `customer.updated` webhook when an admin changes the points.
 ### `PATCH /me`
 Send any of `{ "name": "…", "email": "…", "notify_ready": false }` → `{ "user": … }`.
 ### `POST /me/favourites/{stallId}` and `DELETE /me/favourites/{stallId}` → `{ "favourites": [ … ] }`
+
+## Feedback (Kantina CRM tickets)
+
+### `POST /feedback`
+```json
+// request ("rating" and "order_ref" are optional; the order must be one of mine)
+{ "category": "order_issue", "rating": 2, "message": "My rice was cold.", "order_ref": "KTN-90214" }
+// 201
+{ "feedback": Feedback }
+```
+`category`: `order_issue`, `complaint`, `suggestion` or `praise`. `message`: 3–2000 characters.
+Saved together with an outbox message (`crm.ticket.create`) in one transaction, then sent to the CRM right away. If the CRM is offline, `ticket_no` is `null` and `status_label` is `"Sending…"` until the outbox delivers it.
+Errors: `422 validation_error` (e.g. someone else's `order_ref`).
+
+### `GET /feedback` → `{ "feedback": [Feedback] }` (newest first)
+
+**Feedback**
+```json
+{ "id": 12, "ref": "FB-12", "order_ref": "KTN-90214", "stall": { "id": "lolas-silog", "name": "Lola's Silog" },
+  "category": "order_issue", "category_label": "Problem with an order", "rating": 2, "message": "My rice was cold.",
+  "status": "resolved", "status_label": "Answered",          // open = "Sent", in_progress = "Being looked at"
+  "reply": "Sorry about that! …", "ticket_no": "TCK-0007", "created_at": "…", "updated_at": "…" }
+```
+The CRM's reply and status arrive with the `ticket.updated` webhook. A new reply also emails the student (`feedback_reply`).
 
 ---
 
@@ -393,7 +429,7 @@ Includes orders completed today (`status: "completed"`) so the board can show th
 
 ### `PATCH /seller/orders/{id}/status`
 `{ "status": "paid" }`: **Accept** (cash received; counter orders only, so `can_accept: true`).
-Then `"preparing"` (**Start**), `"ready"` (**Mark ready**, which emails the student), `"completed"` (**Complete**), or `"cancelled"`.
+Then `"preparing"` (**Start**), `"ready"` (**Mark ready**, which emails the student), `"completed"` (**Complete**, which sends the order to Kantina CRM for loyalty points), or `"cancelled"`.
 Wrong order of steps → `409 invalid_transition`. Accepting an unpaid GCash order → `409 awaiting_online_payment`.
 
 ### `GET /seller/menu`

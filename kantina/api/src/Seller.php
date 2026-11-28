@@ -129,9 +129,17 @@ final class Seller
                         Db::exec("UPDATE checkouts SET payment_status = 'paid', paid_at = NOW() WHERE id = ? AND payment_status = 'unpaid'", [$order['checkout_id']]);
                     }
                 }
+                if ($to === 'completed') {
+                    // Picked up: the student earns loyalty points in Kantina CRM (same transaction, so it can't be lost).
+                    Crm::enqueueOrderCompleted($order);
+                }
             });
             if ($to === 'paid') {
                 Outbox::process([$order['ref']]);
+            }
+            if ($to === 'completed') {
+                // Try right away; if the CRM is offline the outbox retries later.
+                Outbox::process([Crm::orderOutboxRef($order['ref'])], 1, 3);
             }
             if ($to === 'ready' && class_exists('Notifier')) {
                 Notifier::orderReady((int) $order['id']);

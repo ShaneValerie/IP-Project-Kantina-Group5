@@ -32,6 +32,11 @@ final class Profile
                 ),
             ],
             'favourites' => self::favourites($uid),
+            // Copy of the student's points in Kantina CRM (updated by the CRM after each order or admin change).
+            'loyalty' => [
+                'points' => (int) $req->user['loyalty_points'],
+                'tier' => $req->user['loyalty_tier'] ?: 'Bronze',
+            ],
         ];
     }
 

@@ -47,6 +47,16 @@
   <div class="scroll">
     <div class="prof-body">
 
+      <!-- Loyalty points from Kantina CRM (filled in by the script below) -->
+      <div class="loyalty-card" id="loyalty-card" hidden>
+        <span class="loyalty-tier" id="loyalty-tier">Bronze</span>
+        <div class="loyalty-main">
+          <div class="loyalty-points"><span id="loyalty-points">0</span> points</div>
+          <div class="loyalty-next" id="loyalty-next"></div>
+          <div class="loyalty-bar" aria-hidden="true"><span id="loyalty-bar"></span></div>
+        </div>
+      </div>
+
       <div class="prof-cols">
         <div class="prof-col">
           <h2 class="section-label">Favourite stalls</h2>
@@ -58,11 +68,11 @@
 
           <h2 class="section-label prof-support-label">Support</h2>
           <div class="prof-group prof-support">
-            <button class="prof-row" type="button" data-profile-row="Help and feedback">
+            <a class="prof-row" href="feedback.html">
           <span class="ico"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M9.7 9.4c.3-1 1.2-1.7 2.3-1.7 1.3 0 2.3.9 2.3 2.1 0 1.6-2.1 1.8-2.3 3.2M12 16.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-          <span class="lbl">Help and feedback<small>Report an issue with an order</small></span>
+          <span class="lbl">Help and feedback<small>Report an issue or send a suggestion</small></span>
           <span class="chev"><svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        </button>
+        </a>
           </div>
         </div>
 
@@ -124,6 +134,7 @@
   <div class="id-dialog-qr"><svg class="qr-svg" viewBox="0 0 21 21" role="img" aria-label="Sample student ID QR code" shape-rendering="crispEdges"><rect width="21" height="21" fill="#fff"/><g fill="#132A1E"><path d="M0 0h7v7H0zM14 0h7v7h-7zM0 14h7v7H0z"/><path fill="#fff" d="M1 1h5v5H1zM15 1h5v5h-5zM1 15h5v5H1z"/><path d="M2 2h3v3H2zM16 2h3v3h-3zM2 16h3v3H2zM9 1h1v2H9zM11 3h2v1h-2zM8 5h1v3H8zM10 8h3v1h-3zM14 9h2v2h-2zM17 8h3v1h-3zM9 10h1v3H9zM12 11h1v2h-1zM1 9h3v1H1zM5 10h2v2H5zM15 13h1v3h-1zM18 12h2v2h-2zM10 15h3v1h-3zM9 17h2v3H9zM13 18h3v1h-3zM17 16h1v4h-1zM19 19h1v1h-1z"/></g></svg></div>
   <form method="dialog"><button class="btn btn-primary" type="submit">Done</button></form>
 </dialog>
+<script src="js/api.js"></script>
 <script src="app.js"></script>
 <script>
 // Profile: Show ID dialog, pickup alerts toggle, and rows without a page yet.
@@ -139,6 +150,25 @@
   });
   document.querySelectorAll('[data-profile-row]').forEach(row =>
     row.addEventListener('click', () => showToast(row.dataset.profileRow + ' is coming soon')));
+
+  // Loyalty card: points and tier come from Kantina CRM (1 point per ₱10; Silver at 100, Gold at 300).
+  if (Auth.user() && Auth.user().role === 'student') {
+    Api.get('/me').then(res => {
+      const points = res.loyalty.points;
+      const tier = res.loyalty.tier;
+      const next = points < 100 ? ['Silver', 100] : points < 300 ? ['Gold', 300] : null;
+      const floor = points < 100 ? 0 : points < 300 ? 100 : 300;
+      document.getElementById('loyalty-points').textContent = points.toLocaleString();
+      const tierEl = document.getElementById('loyalty-tier');
+      tierEl.textContent = tier;
+      tierEl.classList.toggle('tier-gold', tier === 'Gold');
+      document.getElementById('loyalty-next').textContent = next
+        ? `${next[1] - points} more for ${next[0]} · 1 point per ₱10`
+        : 'Top tier · thanks for being a regular!';
+      document.getElementById('loyalty-bar').style.width = next ? `${((points - floor) / (next[1] - floor)) * 100}%` : '100%';
+      document.getElementById('loyalty-card').hidden = false;
+    }).catch(() => { /* not signed in or offline: keep the card hidden */ });
+  }
 })();
 </script>
 </body>

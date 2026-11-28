@@ -126,14 +126,14 @@ INSERT INTO crm_interactions (customer_id, type, ref, amount, points, note, crea
 (3, 'ticket',          'TCK-0003',   NULL,   0, 'Praise',                  TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 4 DAY), '12:20:00'));
 
 INSERT INTO crm_tickets (id, ticket_no, external_ref, customer_id, order_ref, stall_id, category, rating, message, status, reply, created_at, resolved_at) VALUES
-(1, 'TCK-0001', 'FB-SEED-1', 1, 'KTN-90180', 'lolas-silog', 'order_issue', 2,
+(1, 'TCK-0001', 'FB-1', 1, 'KTN-90180', 'lolas-silog', 'order_issue', 2,
     'My Tapsilog was cold when I picked it up, even though I came on time.', 'resolved',
     'Sorry about that, Ana! We''ve asked the stall to hold orders on the warmer until pickup. Your next order gets free extra rice.',
     TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 2 DAY), '12:45:00'), TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '09:15:00')),
-(2, 'TCK-0002', 'FB-SEED-2', 2, NULL, NULL, 'suggestion', NULL,
+(2, 'TCK-0002', 'FB-2', 2, NULL, NULL, 'suggestion', NULL,
     'Please add more vegetarian meals. Most stalls only have meat dishes.', 'open', NULL,
     TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '13:10:00'), NULL),
-(3, 'TCK-0003', 'FB-SEED-3', 3, NULL, 'kape-kanto', 'praise', 5,
+(3, 'TCK-0003', 'FB-3', 3, NULL, 'kape-kanto', 'praise', 5,
     'The iced coffee at Kape Kanto is the best on campus, and pre-ordering saves me so much time.', 'in_progress', NULL,
     TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 4 DAY), '12:20:00'), NULL);
 

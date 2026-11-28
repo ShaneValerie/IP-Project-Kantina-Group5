@@ -10,7 +10,8 @@
  *
  * API keys and webhook secrets are read from erp/config.local.php and
  * crm/config.local.php when present (otherwise the development defaults).
- * It creates a few test orders and one reservation; they end up completed or cancelled,
+ * It creates a few test orders, one reservation and one feedback message; the orders end
+ * up completed or cancelled (the completed one earns CRM loyalty points),
  * and the stock it changes in the ERP is put back.
  */
 if (PHP_SAPI !== 'cli') {
@@ -31,6 +32,7 @@ $crmCfg = $cfg('crm');
 $ERP_KEY = $erpCfg['api_keys']['kantina'];
 $ERP_SECRET = $erpCfg['webhook_secret'];
 $CRM_KEY = $crmCfg['api_keys']['kantina'];
+$CRM_SECRET = $crmCfg['webhook_secret'];
 
 $passed = 0;
 $failed = 0;
@@ -162,6 +164,10 @@ check('ERP sales order is paid', ($so['sales_order']['status'] ?? '') === 'paid'
 [$s] = http('GET', "$K/orders/$ref", null, bearer($student2));
 check("another student can't read the order (404)", $s === 404, "HTTP $s");
 
+[$s, $me] = http('GET', "$K/me", null, bearer($student));
+$pointsBefore = (int) ($me['loyalty']['points'] ?? -1);
+$expectedPoints = (int) floor((float) ($checkout['orders'][0]['subtotal'] ?? 0) / 10);
+
 section('Store console workflow');
 [$s] = http('PATCH', "$K/seller/orders/$orderId/status", ['status' => 'preparing'], bearer($staff2));
 check("another stall can't touch the order (404)", $s === 404, "HTTP $s");
@@ -173,6 +179,17 @@ foreach (['preparing', 'ready', 'completed'] as $st) {
 }
 [$s, $b] = http('GET', "$K/orders/$ref", null, bearer($student));
 check('student tracking shows completed', ($b['order']['status'] ?? '') === 'completed', $b['order']['status'] ?? "HTTP $s");
+
+section('CRM: loyalty points for completed orders');
+[$s, $b] = http('GET', "$C/customers/" . ($me['user']['id'] ?? 0), null, ['X-Api-Key' => $CRM_KEY]);
+$inCrm = false;
+foreach ($b['interactions'] ?? [] as $i) {
+    $inCrm = $inCrm || ($i['type'] === 'order_completed' && $i['ref'] === $ref);
+}
+check('the CRM recorded the completed order', $s === 200 && $inCrm, "HTTP $s");
+[$s, $b] = http('GET', "$K/me", null, bearer($student));
+check("the student's points went up by $expectedPoints", ($b['loyalty']['points'] ?? null) === $pointsBefore + $expectedPoints,
+    json_encode($b['loyalty'] ?? null) . " vs $pointsBefore + $expectedPoints");
 
 section('Cancelling returns stock to the ERP');
 [$s, $b] = http('POST', "$K/orders", ['items' => [['sku' => $sku, 'qty' => 2]], 'pickup_date' => $date, 'pickup_time' => $slot, 'payment_method' => 'counter'], bearer($student));
@@ -274,12 +291,44 @@ check('reservation shows on the store console map', $onMap);
 [$s] = http('DELETE', "$K/reservations/$rsv", null, bearer($student));
 check('reservation cancelled', $s === 200, "HTTP $s");
 
+// ------------------------------------------------------------------ CRM feedback
+section('CRM: feedback → tickets, replies by webhook');
+[$s, $b] = http('POST', "$K/feedback", ['category' => 'order_issue', 'rating' => 3, 'message' => 'Smoke test: the order was a bit late.', 'order_ref' => $ref], bearer($student));
+$fb = $b['feedback'] ?? [];
+check('feedback saved (201)', $s === 201 && !empty($fb['id']), "HTTP $s " . json_encode($b['error'] ?? null));
+check('feedback became a CRM ticket', !empty($fb['ticket_no']), json_encode($fb['status_label'] ?? null));
+[$s, $t] = http('GET', "$C/tickets/" . ($fb['ref'] ?? 'none'), null, ['X-Api-Key' => $CRM_KEY]);
+check('the CRM has the ticket for this order', $s === 200 && ($t['ticket']['order_ref'] ?? '') === $ref, "HTTP $s");
+[$s] = http('POST', "$K/feedback", ['category' => 'complaint', 'message' => 'Not my order', 'order_ref' => 'KTN-00000'], bearer($student));
+check("feedback about someone else's order is refused (422)", $s === 422, "HTTP $s");
+$reply = 'Smoke test reply ' . bin2hex(random_bytes(3));
+[$body, $headers] = signed($CRM_SECRET, ['id' => 'evt_smoke_' . bin2hex(random_bytes(6)), 'event' => 'ticket.updated', 'source' => 'crm', 'created_at' => date('c'),
+    'data' => ['ticket' => ['external_ref' => $fb['ref'] ?? '', 'ticket_no' => $fb['ticket_no'] ?? '', 'status' => 'resolved', 'reply' => $reply]]]);
+[$s] = http('POST', "$K/integrations/crm/webhook", $body, $headers);
+check('signed CRM ticket.updated webhook accepted', $s === 200, "HTTP $s");
+[$s, $b] = http('GET', "$K/feedback", null, bearer($student));
+$mine = array_values(array_filter($b['feedback'] ?? [], fn($f) => $f['id'] === ($fb['id'] ?? null)))[0] ?? [];
+check('the student sees the reply and "resolved"', ($mine['reply'] ?? '') === $reply && ($mine['status'] ?? '') === 'resolved', json_encode([$mine['status'] ?? null, $mine['reply'] ?? null]));
+[$s, $me] = http('GET', "$K/me", null, bearer($student));
+$points = (int) ($me['loyalty']['points'] ?? 0);
+[$body, $headers] = signed($CRM_SECRET, ['id' => 'evt_smoke_' . bin2hex(random_bytes(6)), 'event' => 'customer.updated', 'source' => 'crm', 'created_at' => date('c'),
+    'data' => ['customer' => ['kantina_user_id' => $me['user']['id'] ?? 0, 'points' => $points + 5, 'tier' => $me['loyalty']['tier'] ?? 'Bronze']]]);
+[$s] = http('POST', "$K/integrations/crm/webhook", $body, $headers);
+[$s2, $b] = http('GET', "$K/me", null, bearer($student));
+check('a customer.updated webhook changes the profile points', $s === 200 && ($b['loyalty']['points'] ?? null) === $points + 5, "HTTP $s " . json_encode($b['loyalty'] ?? null));
+[$body, $headers] = signed($CRM_SECRET, ['id' => 'evt_smoke_' . bin2hex(random_bytes(6)), 'event' => 'customer.updated', 'source' => 'crm', 'created_at' => date('c'),
+    'data' => ['customer' => ['kantina_user_id' => $me['user']['id'] ?? 0, 'points' => $points, 'tier' => $me['loyalty']['tier'] ?? 'Bronze']]]);
+http('POST', "$K/integrations/crm/webhook", $body, $headers);   // put the points back
+[$s] = http('POST', "$K/integrations/crm/webhook", '{"id":"evt_fake","event":"customer.updated","data":{}}', ['X-Kantina-Signature' => 't=' . time() . ',v1=' . str_repeat('0', 64)]);
+check('CRM webhook with a forged signature is rejected (401)', $s === 401, "HTTP $s");
+
 // ------------------------------------------------------------------ analytics + status
 section('Analytics & integration status');
 [$s, $b] = http('GET', "$K/seller/analytics?range=7", null, bearer($staff1));
 check('analytics come from the ERP', $s === 200 && ($b['source'] ?? '') === 'erp' && ($b['orders'] ?? 0) > 0, "HTTP $s");
 [$s, $b] = http('GET', "$K/integrations/status", null, bearer($staff1));
 check('status page sees the ERP online', !empty($b['erp']['online']), $b['erp']['error'] ?? "HTTP $s");
+check('status page sees the CRM online', !empty($b['crm']['online']), $b['crm']['error'] ?? "HTTP $s");
 [$s] = http('GET', "$C/whoami");
 check('CRM rejects calls without API key (401)', $s === 401, "HTTP $s");
 [$s, $b] = http('GET', "$C/whoami", null, ['X-Api-Key' => $CRM_KEY]);

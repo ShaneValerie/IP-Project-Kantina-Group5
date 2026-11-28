@@ -56,6 +56,20 @@ final class Notifier
         self::send((int) $o['user_id'], 'order_ready', $o['customer_email'], $o['customer_name'], 'Ready for pickup: ' . $o['stall_name'] . ' #' . $o['id'], self::layout('Ready for pickup', $html));
     }
 
+    /** The CRM replied to the student's feedback (ticket.updated webhook). */
+    public static function feedbackReplied(int $feedbackId): void
+    {
+        $f = Db::one('SELECT f.*, u.name, u.email FROM feedback f JOIN users u ON u.id = f.user_id WHERE f.id = ?', [$feedbackId]);
+        if (!$f || !$f['email'] || !$f['reply']) {
+            return;
+        }
+        $html = '<p>Hi ' . self::e(explode(' ', $f['name'])[0]) . ', the canteen replied to your feedback'
+            . ($f['crm_ticket_no'] ? ' (' . self::e($f['crm_ticket_no']) . ')' : '') . ':</p>'
+            . '<p style="background:#F3F5F1;border-radius:10px;padding:12px">' . nl2br(self::e($f['reply'])) . '</p>'
+            . '<p style="color:#5D6E64;font-size:13px">Your message: “' . self::e(mb_strimwidth($f['message'], 0, 160, '…')) . '”</p>';
+        self::send((int) $f['user_id'], 'feedback_reply', $f['email'], $f['name'], 'Reply to your Kantina feedback', self::layout('We replied to your feedback', $html));
+    }
+
     public static function reservationConfirmed(array $r): void
     {
         $u = Db::one('SELECT id, name, email FROM users WHERE id = ?', [$r['user_id']]);

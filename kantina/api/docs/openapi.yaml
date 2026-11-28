@@ -26,6 +26,8 @@ tags:
   - name: Ordering
   - name: Reservations
   - name: Profile
+  - name: Feedback
+    description: Student feedback, sent to Kantina CRM as tickets
   - name: Store console
     description: Staff only; limited to the staff member's own stall
   - name: Integrations
@@ -258,6 +260,23 @@ components:
         sold_out: { type: boolean }
         published: { type: boolean }
         photo_url: { type: string, nullable: true }
+    Feedback:
+      type: object
+      properties:
+        id: { type: integer, example: 12 }
+        ref: { type: string, example: FB-12 }
+        order_ref: { type: string, nullable: true, example: KTN-90214 }
+        stall: { type: object, nullable: true, properties: { id: { type: string }, name: { type: string } } }
+        category: { type: string, enum: [order_issue, complaint, suggestion, praise] }
+        category_label: { type: string, example: Problem with an order }
+        rating: { type: integer, minimum: 1, maximum: 5, nullable: true }
+        message: { type: string }
+        status: { type: string, enum: [open, in_progress, resolved] }
+        status_label: { type: string, example: Answered, description: 'Sent / Being looked at / Answered, or "Sending…" while the CRM has not received it yet' }
+        reply: { type: string, nullable: true }
+        ticket_no: { type: string, nullable: true, example: TCK-0007 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     WebhookEvent:
       type: object
       required: [id, event, data]
@@ -550,7 +569,8 @@ paths:
   /me:
     get:
       tags: [Profile]
-      summary: Profile, stats and favourite stalls
+      summary: Profile, stats, favourite stalls and loyalty points
+      description: '`loyalty` ({points, tier}) is Kantina''s copy of the student''s points in Kantina CRM.'
       responses:
         '200': { description: OK }
     patch:
@@ -575,6 +595,34 @@ paths:
       responses:
         '200': { description: OK }
 
+  /feedback:
+    get:
+      tags: [Feedback]
+      summary: My feedback, with the canteen's status and reply
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { type: object, properties: { feedback: { type: array, items: { $ref: '#/components/schemas/Feedback' } } } } } }
+    post:
+      tags: [Feedback]
+      summary: Send feedback (becomes a Kantina CRM ticket)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category, message]
+              properties:
+                category: { type: string, enum: [order_issue, complaint, suggestion, praise] }
+                message: { type: string, minLength: 3, maxLength: 2000, example: My rice was cold. }
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                order_ref: { type: string, example: KTN-90214, description: One of my own orders }
+      responses:
+        '201':
+          description: Saved and queued for the CRM (`ticket_no` is null until the CRM has it)
+          content: { application/json: { schema: { type: object, properties: { feedback: { $ref: '#/components/schemas/Feedback' } } } } }
+        '422': { description: Invalid input or not one of my orders }
   /seller/orders:
     get:
       tags: [Store console]
@@ -684,6 +732,17 @@ paths:
     post:
       tags: [Integrations]
       summary: Receive ERP events (product.updated, stock.low, stock.depleted)
+      security: [ { webhookSignature: [] } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookEvent' } } }
+      responses:
+        '200': { description: Processed (or duplicate) }
+        '401': { description: Invalid signature }
+  /integrations/crm/webhook:
+    post:
+      tags: [Integrations]
+      summary: Receive CRM events (customer.updated, ticket.updated)
       security: [ { webhookSignature: [] } ]
       requestBody:
         required: true

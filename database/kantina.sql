@@ -13,6 +13,7 @@ SET time_zone = '+08:00';
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS request_log;
+DROP TABLE IF EXISTS feedback;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS webhook_log;
 DROP TABLE IF EXISTS integration_outbox;
@@ -43,6 +44,8 @@ CREATE TABLE users (
   grad_year     SMALLINT     NULL,
   stall_id      VARCHAR(40)  NULL,             -- staff only: the stall they work for
   notify_ready  TINYINT(1)   NOT NULL DEFAULT 1,
+  loyalty_points INT         NOT NULL DEFAULT 0,  -- students: copy of the CRM's points (the CRM owns them)
+  loyalty_tier  VARCHAR(20)  NULL,               -- Bronze / Silver / Gold, from the CRM
   password_hash VARCHAR(255) NOT NULL,
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -246,10 +249,29 @@ CREATE TABLE webhook_log (
   UNIQUE KEY uq_webhook_event (source, event_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Student feedback. Sent to Kantina CRM as a ticket (through the outbox);
+-- the CRM's reply and status come back by webhook (ticket.updated).
+CREATE TABLE feedback (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id       INT UNSIGNED NOT NULL,
+  order_ref     VARCHAR(20)  NULL,
+  stall_id      VARCHAR(40)  NULL,
+  category      ENUM('order_issue','complaint','suggestion','praise') NOT NULL,
+  rating        TINYINT UNSIGNED NULL,
+  message       TEXT         NOT NULL,
+  status        ENUM('open','in_progress','resolved') NOT NULL DEFAULT 'open',
+  reply         TEXT         NULL,
+  crm_ticket_no VARCHAR(20)  NULL,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_feedback_user (user_id, created_at),
+  CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE notifications (
   id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id     INT UNSIGNED NULL,
-  kind        VARCHAR(40)  NOT NULL,          -- order_received, order_ready, reservation_confirmed
+  kind        VARCHAR(40)  NOT NULL,          -- order_received, order_ready, reservation_confirmed, feedback_reply
   to_email    VARCHAR(120) NOT NULL,
   subject     VARCHAR(200) NOT NULL,
   body        TEXT         NOT NULL,
@@ -292,6 +314,11 @@ INSERT INTO users (id, role, student_id, account, email, name, program, grad_yea
 (8, 'admin',   NULL,      'admin',    NULL,                       'Canteen Admin',        NULL,    NULL, NULL,            '$2y$10$vYz5nBV1XYAmWeBoQ7MyMe0XVNAtH34hA1NUDYEGRNkbV8amtHVYe');
 
 INSERT INTO favourites (user_id, stall_id) VALUES (1, 'lolas-silog'), (1, 'kape-kanto');
+
+-- Loyalty copied from Kantina CRM's demo data (database/kantina_crm.sql).
+UPDATE users SET loyalty_points = 121, loyalty_tier = 'Silver' WHERE id = 1;
+UPDATE users SET loyalty_points = 20,  loyalty_tier = 'Bronze' WHERE id = 2;
+UPDATE users SET loyalty_points = 320, loyalty_tier = 'Gold'   WHERE id = 3;
 
 -- Menu content. Prices and stock match the ERP seed, so the app works
 -- right after import; ERP webhooks and the ERP sync keep them current.
@@ -378,3 +405,17 @@ ALTER TABLE reservations AUTO_INCREMENT = 1006;
 INSERT INTO order_items (order_id, sku, name, qty, unit_price, addons, addons_total, note, line_total) VALUES
 (90155, 'KK-ICED-COFFEE', 'Iced coffee', 1, 60.00, '[]', 0, NULL,  60.00),
 (90180, 'LS-LONGSILOG',   'Longsilog',   2, 75.00, '[]', 0, NULL, 150.00);
+
+-- Demo feedback = the CRM's demo tickets TCK-0001…0003 (external_ref FB-1…3).
+INSERT INTO feedback (id, user_id, order_ref, stall_id, category, rating, message, status, reply, crm_ticket_no, created_at) VALUES
+(1, 1, 'KTN-90180', 'lolas-silog', 'order_issue', 2,
+    'My Tapsilog was cold when I picked it up, even though I came on time.', 'resolved',
+    'Sorry about that, Ana! We''ve asked the stall to hold orders on the warmer until pickup. Your next order gets free extra rice.',
+    'TCK-0001', TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 2 DAY), '12:45:00')),
+(2, 2, NULL, NULL, 'suggestion', NULL,
+    'Please add more vegetarian meals. Most stalls only have meat dishes.', 'open', NULL,
+    'TCK-0002', TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '13:10:00')),
+(3, 3, NULL, 'kape-kanto', 'praise', 5,
+    'The iced coffee at Kape Kanto is the best on campus, and pre-ordering saves me so much time.', 'in_progress', NULL,
+    'TCK-0003', TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 4 DAY), '12:20:00'));
+ALTER TABLE feedback AUTO_INCREMENT = 4;
