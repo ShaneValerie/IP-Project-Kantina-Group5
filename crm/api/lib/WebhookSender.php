@@ -1,6 +1,6 @@
 <?php
 /**
- * Sends signed webhooks (used by the ERP and the CMS to notify Kantina).
+ * Sends signed webhooks (used by the ERP and the CRM to notify Kantina).
  *
  * Every event is first saved in a deliveries table, then POSTed with an
  * HMAC signature. Failed deliveries stay in the table and can be resent

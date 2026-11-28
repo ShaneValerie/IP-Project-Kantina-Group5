@@ -9,15 +9,15 @@ return [
     'db' => [
         'host' => 'localhost',
         'port' => 3306,
-        'name' => 'kantina_cms',
+        'name' => 'kantina_crm',
         'user' => 'your_db_user',
         'pass' => 'your_db_password',
     ],
     'urls' => [
         'kantina' => 'https://kantina.example.edu.ph',
         'erp'     => 'https://kantina-erp.example.edu.ph',
-        'cms'     => 'https://kantina-cms.example.edu.ph',
+        'crm'     => 'https://kantina-crm.example.edu.ph',
     ],
-    'api_keys' => ['kantina' => 'paste-the-cms-api-key-here'],
-    'webhook_secret' => 'paste-the-cms-webhook-secret-here',
+    'api_keys' => ['kantina' => 'paste-the-crm-api-key-here'],
+    'webhook_secret' => 'paste-the-crm-webhook-secret-here',
 ];

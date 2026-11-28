@@ -14,15 +14,15 @@ return [
         'pass' => '',
     ],
     // Public base URLs of the three apps. Empty = the apps are sibling folders on the same host.
-    'urls' => ['kantina' => '', 'erp' => '', 'cms' => ''],
+    'urls' => ['kantina' => '', 'erp' => '', 'crm' => ''],
 
     // Login tokens (JWT, HS256)
     'jwt_secret' => 'dev-kantina-jwt-secret',
     'token_ttl_hours' => 168,
 
-    // Integrations — keys must match the ERP / CMS configs
+    // Integrations — keys must match the ERP / CRM configs
     'erp' => ['api_key' => 'dev-erp-api-key', 'webhook_secret' => 'dev-erp-webhook-secret'],
-    'cms' => ['api_key' => 'dev-cms-api-key', 'webhook_secret' => 'dev-cms-webhook-secret'],
+    'crm' => ['api_key' => 'dev-crm-api-key', 'webhook_secret' => 'dev-crm-webhook-secret'],
 
     // Ordering
     'service_fee' => 5,

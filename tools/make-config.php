@@ -1,15 +1,15 @@
 <?php
 /**
- * Writes config.local.php for kantina/, erp/ and cms/ with MATCHING random
+ * Writes config.local.php for kantina/, erp/ and crm/ with MATCHING random
  * secrets (API keys and webhook secrets must be identical on both sides).
  * Use it once when deploying, then upload each app's config.local.php.
  *
  *   php tools/make-config.php \
  *     --kantina-url=https://kantina.example.edu.ph \
  *     --erp-url=https://kantina-erp.example.edu.ph \
- *     --cms-url=https://kantina-cms.example.edu.ph \
+ *     --crm-url=https://kantina-crm.example.edu.ph \
  *     --db-host=localhost --db-user=myuser --db-pass=mypass \
- *     [--kantina-db=kantina --erp-db=kantina_erp --cms-db=kantina_cms | --single-db=mydb] \
+ *     [--kantina-db=kantina --erp-db=kantina_erp --crm-db=kantina_crm | --single-db=mydb] \
  *     [--brevo-key=xkeysib-... --from-email=you@example.com] [--force]
  *
  * One subdomain with folders? Use --kantina-url=https://x.edu.ph/kantina etc.
@@ -17,8 +17,8 @@
 if (PHP_SAPI !== 'cli') {
     exit("Run from the command line.\n");
 }
-$o = getopt('', ['kantina-url:', 'erp-url:', 'cms-url:', 'db-host:', 'db-port:', 'db-user:', 'db-pass::', 'kantina-db:', 'erp-db:', 'cms-db:', 'single-db:', 'brevo-key:', 'from-email:', 'force', 'debug']);
-foreach (['kantina-url', 'erp-url', 'cms-url', 'db-user'] as $required) {
+$o = getopt('', ['kantina-url:', 'erp-url:', 'crm-url:', 'db-host:', 'db-port:', 'db-user:', 'db-pass::', 'kantina-db:', 'erp-db:', 'crm-db:', 'single-db:', 'brevo-key:', 'from-email:', 'force', 'debug']);
+foreach (['kantina-url', 'erp-url', 'crm-url', 'db-user'] as $required) {
     if (empty($o[$required])) {
         fwrite(STDERR, "Missing --$required (see the comment at the top of this file).\n");
         exit(1);
@@ -30,13 +30,13 @@ $s = [
     'jwt' => $secret(),
     'erp_key' => 'erp_' . $secret(),
     'erp_hook' => $secret(),
-    'cms_key' => 'cms_' . $secret(),
-    'cms_hook' => $secret(),
+    'crm_key' => 'crm_' . $secret(),
+    'crm_hook' => $secret(),
 ];
 $urls = [
     'kantina' => rtrim($o['kantina-url'], '/'),
     'erp' => rtrim($o['erp-url'], '/'),
-    'cms' => rtrim($o['cms-url'], '/'),
+    'crm' => rtrim($o['crm-url'], '/'),
 ];
 $single = $o['single-db'] ?? null;
 $db = fn(string $name) => [
@@ -55,7 +55,7 @@ $configs = [
         'urls' => $urls,
         'jwt_secret' => $s['jwt'],
         'erp' => ['api_key' => $s['erp_key'], 'webhook_secret' => $s['erp_hook']],
-        'cms' => ['api_key' => $s['cms_key'], 'webhook_secret' => $s['cms_hook']],
+        'crm' => ['api_key' => $s['crm_key'], 'webhook_secret' => $s['crm_hook']],
         'email' => [
             'brevo_api_key' => $o['brevo-key'] ?? '',
             'from_email' => $o['from-email'] ?? '',
@@ -69,12 +69,12 @@ $configs = [
         'api_keys' => ['kantina' => $s['erp_key']],
         'webhook_secret' => $s['erp_hook'],
     ],
-    'cms' => [
+    'crm' => [
         'debug' => $debug,
-        'db' => $db($o['cms-db'] ?? 'kantina_cms'),
+        'db' => $db($o['crm-db'] ?? 'kantina_crm'),
         'urls' => $urls,
-        'api_keys' => ['kantina' => $s['cms_key']],
-        'webhook_secret' => $s['cms_hook'],
+        'api_keys' => ['kantina' => $s['crm_key']],
+        'webhook_secret' => $s['crm_hook'],
     ],
 ];
 
@@ -89,4 +89,4 @@ foreach ($configs as $app => $config) {
     echo "✓ wrote $app/config.local.php\n";
 }
 echo "\nUpload each app folder together with its config.local.php.\n";
-echo "The ERP and CMS keys/secrets in the three files match each other — don't edit just one of them.\n";
+echo "The ERP and CRM keys/secrets in the three files match each other — don't edit just one of them.\n";

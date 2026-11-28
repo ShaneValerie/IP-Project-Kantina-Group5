@@ -1,11 +1,11 @@
 <?php
 /**
- * HTTP clients for the two integrated systems.
- * Both authenticate with an API key sent in the X-Api-Key header.
+ * HTTP clients for the integrated systems (subclass ServiceClient for each one).
+ * They authenticate with an API key sent in the X-Api-Key header.
  */
 abstract class ServiceClient
 {
-    abstract protected static function app(): string;      // 'erp' | 'cms'
+    abstract protected static function app(): string;      // 'erp' | 'crm'
     abstract protected static function label(): string;    // 'Kantina ERP'
 
     public static function baseUrl(): string
@@ -57,10 +57,4 @@ final class ErpClient extends ServiceClient
 {
     protected static function app(): string { return 'erp'; }
     protected static function label(): string { return 'Kantina ERP'; }
-}
-
-final class CmsClient extends ServiceClient
-{
-    protected static function app(): string { return 'cms'; }
-    protected static function label(): string { return 'Kantina CMS'; }
 }

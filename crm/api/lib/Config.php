@@ -7,7 +7,7 @@
  *   2. <app>/config.local.php   (not in git — passwords, secrets, live URLs)
  *   3. environment variables    (used by dev.sh)
  *
- * NOTE: api/lib/ is identical in kantina/, erp/ and cms/ so each app can be
+ * NOTE: api/lib/ is identical in kantina/, erp/ and crm/ so each app can be
  * deployed on its own. Edit it in kantina/api/lib and run `php tools/sync-lib.php`.
  */
 final class Config
@@ -28,7 +28,7 @@ final class Config
         $env = [
             'DB_HOST' => 'db.host', 'DB_PORT' => 'db.port', 'DB_USER' => 'db.user', 'DB_PASS' => 'db.pass',
             strtoupper($appName) . '_DB' => 'db.name',
-            'KANTINA_URL' => 'urls.kantina', 'ERP_URL' => 'urls.erp', 'CMS_URL' => 'urls.cms',
+            'KANTINA_URL' => 'urls.kantina', 'ERP_URL' => 'urls.erp', 'CRM_URL' => 'urls.crm',
             'BREVO_API_KEY' => 'email.brevo_api_key',
         ];
         foreach ($env as $var => $path) {
@@ -64,7 +64,7 @@ final class Config
     }
 
     /**
-     * Public base URL of an app ('kantina', 'erp' or 'cms'), without trailing slash.
+     * Public base URL of an app ('kantina', 'erp' or 'crm'), without trailing slash.
      * Uses urls.<app> from the config; if empty, assumes the apps are sibling
      * folders on the same host (the default XAMPP htdocs layout).
      */
@@ -77,7 +77,7 @@ final class Config
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         // Every PHP entry point is one folder below its app (api/index.php, admin/*.php), so
-        // /<root>/<app>/api/index.php -> <root> is the folder that holds kantina/, erp/ and cms/.
+        // /<root>/<app>/api/index.php -> <root> is the folder that holds kantina/, erp/ and crm/.
         $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
         if ($script !== '' && substr_count($script, '/') >= 3) {
             $root = str_replace('\\', '/', dirname(dirname(dirname($script))));

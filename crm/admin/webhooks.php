@@ -5,7 +5,7 @@ require_login();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     if (($_POST['action'] ?? '') === 'resend' && !empty($_POST['id'])) {
-        $ok = WebhookSender::deliver('cms_webhook_deliveries', (int) $_POST['id'], Events::url(), (string) Config::get('webhook_secret'));
+        $ok = WebhookSender::deliver('crm_webhook_deliveries', (int) $_POST['id'], Events::url(), (string) Config::get('webhook_secret'));
         flash($ok ? 'ok' : 'error', $ok ? 'Delivered to Kantina.' : 'Kantina did not accept it — check that Kantina is online and the secrets match.');
     } elseif (($_POST['action'] ?? '') === 'resend_all') {
         [$ok, $bad] = Events::retryFailed(50);
@@ -14,15 +14,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('webhooks.php');
 }
 
-$rows = Db::all('SELECT * FROM cms_webhook_deliveries ORDER BY id DESC LIMIT 100');
-$failed = (int) Db::value("SELECT COUNT(*) FROM cms_webhook_deliveries WHERE status <> 'delivered'");
+$rows = Db::all('SELECT * FROM crm_webhook_deliveries ORDER BY id DESC LIMIT 100');
+$failed = (int) Db::value("SELECT COUNT(*) FROM crm_webhook_deliveries WHERE status <> 'delivered'");
 
 layout_start('Webhooks', 'webhooks');
 ?>
 <div class="page-head">
   <div>
     <h1>Webhooks to Kantina</h1>
-    <div class="muted">The CMS tells Kantina when published content changes; Kantina then fetches the latest version. Each message is signed with HMAC-SHA256.</div>
+    <div class="muted">Messages the CRM sends to Kantina. Each one is signed with HMAC-SHA256 and can be resent if Kantina was offline.</div>
     <div class="small muted">Endpoint: <code><?= h(Events::url()) ?></code></div>
   </div>
   <?php if ($failed): ?>
@@ -31,7 +31,7 @@ layout_start('Webhooks', 'webhooks');
 </div>
 
 <div class="card table-wrap">
-  <?php if (!$rows): ?><p class="muted">No webhooks sent yet. Edit and save any content to send one.</p><?php else: ?>
+  <?php if (!$rows): ?><p class="muted">No webhooks sent yet.</p><?php else: ?>
   <table>
     <tr><th>Event</th><th>Status</th><th class="num">Attempts</th><th>Created</th><th>Details</th><th></th></tr>
     <?php foreach ($rows as $w): ?>

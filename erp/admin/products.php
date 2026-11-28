@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'stock' => $_POST['stock'] ?? 0,
             'track_stock' => isset($_POST['track_stock']),
             'reorder_level' => $_POST['reorder_level'] ?? 5,
-        ], $actor), 'Product added. Add its description and photo in the CMS so students can see it.');
+        ], $actor), 'Product added — it now shows in Kantina. Stall staff can add a description in the store console.');
     }
     redirect($back . (isset($_POST['sku']) ? '#' . rawurlencode($sku) : ''));
 }

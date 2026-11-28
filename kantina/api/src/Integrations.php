@@ -1,12 +1,12 @@
 <?php
 /**
- * Integration endpoints: incoming webhooks from the ERP and CMS, manual
- * sync, and the status page data.
+ * Integration endpoints: incoming webhooks from the ERP, manual ERP sync,
+ * and the status page data.
  *
  * Incoming webhooks are:
  *   1. verified  — HMAC-SHA256 signature with the shared secret (else 401)
  *   2. de-duplicated — each event id is processed once (webhook_log)
- *   3. processed — the catalog cache is updated
+ *   3. processed — e.g. the ERP price/stock copy is updated
  *   4. logged    — visible on the integrations status page
  */
 final class Integrations
@@ -14,8 +14,7 @@ final class Integrations
     public static function routes(Router $r): void
     {
         $r->post('/integrations/erp/webhook', fn(Request $q) => self::receive($q, 'erp', [self::class, 'handleErp']));
-        $r->post('/integrations/cms/webhook', fn(Request $q) => self::receive($q, 'cms', [self::class, 'handleCms']));
-        $r->post('/integrations/cms/sync', fn() => ['synced' => Catalog::fullSync()], [Auth::staff()]);
+        $r->post('/integrations/erp/sync', fn() => ['synced' => Catalog::fullSync()], [Auth::staff()]);
         $r->get('/integrations/status', [self::class, 'status'], [Auth::staff()]);
     }
 
@@ -73,30 +72,6 @@ final class Integrations
         }
     }
 
-    /** CMS events are thin ("X changed"), so we fetch the latest version from the CMS API. */
-    public static function handleCms(string $event, array $data): ?string
-    {
-        if ($event !== 'content.published') {
-            return "Ignored unknown event $event";
-        }
-        $type = $data['type'] ?? '';
-        $id = (string) ($data['id'] ?? '');
-        switch ($type) {
-            case 'stall':
-                Catalog::syncStall($id);
-                break;
-            case 'menu_item':
-                Catalog::syncEntry($id);
-                break;
-            case 'announcement':
-                Catalog::syncAnnouncements();
-                break;
-            default:
-                return "Ignored unknown content type $type";
-        }
-        return null;
-    }
-
     public static function status(): array
     {
         $outbox = [];
@@ -105,9 +80,7 @@ final class Integrations
         }
         return [
             'erp' => ErpClient::health(),
-            'cms' => CmsClient::health(),
             'last_sync' => [
-                'cms' => Support::kvGet('last_cms_sync'),
                 'erp' => Support::kvGet('last_erp_sync'),
             ],
             'outbox' => [

@@ -1,6 +1,6 @@
 <?php
 /**
- * JSON HTTP client (cURL) used for calls between Kantina, the ERP, the CMS
+ * JSON HTTP client (cURL) used for calls between Kantina, the ERP, the CRM
  * and external services. Never throws on HTTP errors — check ['ok'].
  */
 final class HttpClient

@@ -46,7 +46,7 @@
       </div>
 
       <p class="list-footnote">Toggling off hides the item from students immediately.</p>
-      <p class="list-footnote">Prices and stock are saved to Kantina ERP; names and descriptions to Kantina CMS.</p>
+      <p class="list-footnote">Prices and stock are saved to Kantina ERP; names and descriptions to Kantina.</p>
     </main>
 
     <div class="panel-placeholder" id="panel-placeholder" hidden></div>
@@ -292,7 +292,7 @@
     };
   }
 
-  /** For edits, send only what changed, so an unchanged name doesn't call the CMS. */
+  /** For edits, send only what changed, so an unchanged name or price doesn't call the ERP. */
   function changedFields(item, values) {
     const changes = {};
     if (values.name !== item.name) changes.name = values.name;
@@ -330,7 +330,7 @@
       }
       closeModal();
     } catch (err) {
-      // 502: the ERP or CMS is down. The message says what was and wasn't saved.
+      // 502: the ERP is down. The message says what was and wasn't saved.
       showToast(err.message);
       if (err.status === 502) closeModal();
     } finally {
