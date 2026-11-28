@@ -1246,7 +1246,7 @@ a.order-card:hover{ border-color:var(--green); }
 .signin-demo{ margin-top:4px; padding-bottom:0; font-size:12.5px; }
 
 /* ---------- Catalog pages (home, stall, item) loaded from the API ---------- */
-button.chip, button.segtab{ font:inherit; cursor:pointer; }
+button.chip, button.segtab{ font-family:inherit; cursor:pointer; }
 .page-home .open-badge.closed{ background:var(--border-soft); color:var(--ink-soft); }
 .load-msg{ margin:0; padding:18px 0; font-size:14px; color:var(--ink-soft); }
 .load-msg a{ color:var(--green); font-weight:600; }
@@ -1303,3 +1303,6 @@ button.chip, button.segtab{ font:inherit; cursor:pointer; }
 .loyalty-card .loyalty-next{ margin-top:4px; font-size:12.5px; opacity:.85; }
 .loyalty-card .loyalty-bar{ height:6px; margin-top:8px; border-radius:99px; background:rgba(255,255,255,.22); overflow:hidden; }
 .loyalty-card .loyalty-bar span{ display:block; height:100%; background:var(--yellow); }
+.order-sidebar .tray-stall{ font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; margin:10px 0 4px; }
+.order-sidebar .tray-stall:first-of-type{ margin-top:0; }
+.page-item .item-stock{ margin:6px 0 0; font-size:13px; font-weight:600; color:#B54708; }
