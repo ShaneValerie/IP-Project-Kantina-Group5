@@ -148,6 +148,24 @@
     toggle.classList.toggle('on', on);
   }
 
+  // Loyalty card: points and tier come from Kantina CRM (1 point per ₱10; Silver at 100, Gold at 300).
+  function renderLoyalty(loyalty) {
+    if (!loyalty) return;   // no CRM data yet: keep the card hidden
+    const points = loyalty.points;
+    const tier = loyalty.tier;
+    const next = points < 100 ? ['Silver', 100] : points < 300 ? ['Gold', 300] : null;
+    const floor = points < 100 ? 0 : points < 300 ? 100 : 300;
+    document.getElementById('loyalty-points').textContent = points.toLocaleString();
+    const tierEl = document.getElementById('loyalty-tier');
+    tierEl.textContent = tier;
+    tierEl.classList.toggle('tier-gold', tier === 'Gold');
+    document.getElementById('loyalty-next').textContent = next
+      ? `${next[1] - points} more for ${next[0]} · 1 point per ₱10`
+      : 'Top tier · thanks for being a regular!';
+    document.getElementById('loyalty-bar').style.width = next ? `${((points - floor) / (next[1] - floor)) * 100}%` : '100%';
+    document.getElementById('loyalty-card').hidden = false;
+  }
+
   Api.get('/me')
     .then(res => {
       const u = res.user;
@@ -164,6 +182,7 @@
       document.getElementById('fav-grid').innerHTML = res.favourites.map(f =>
         `<a class="fav-card" href="stall.html?id=${encodeURIComponent(f.id)}">${f.photo_url ? `<img class="photo-img" src="${escapeHtml(f.photo_url)}" alt="" loading="lazy">` : PLACEHOLDER}<span>${escapeHtml(f.name)}</span></a>`
       ).join('') + '<a class="fav-card fav-add" href="home.html">+ Add</a>';
+      try { renderLoyalty(res.loyalty); } catch (e) { /* a bad loyalty value only hides the card */ }
     })
     .catch(err => { set('prof-name', 'Couldn\u2019t load your profile'); showToast(err.message); });
 
@@ -185,24 +204,6 @@
   document.querySelectorAll('[data-profile-row]').forEach(row =>
     row.addEventListener('click', () => showToast(row.dataset.profileRow + ' is coming soon')));
 
-  // Loyalty card: points and tier come from Kantina CRM (1 point per ₱10; Silver at 100, Gold at 300).
-  if (Auth.user() && Auth.user().role === 'student') {
-    Api.get('/me').then(res => {
-      const points = res.loyalty.points;
-      const tier = res.loyalty.tier;
-      const next = points < 100 ? ['Silver', 100] : points < 300 ? ['Gold', 300] : null;
-      const floor = points < 100 ? 0 : points < 300 ? 100 : 300;
-      document.getElementById('loyalty-points').textContent = points.toLocaleString();
-      const tierEl = document.getElementById('loyalty-tier');
-      tierEl.textContent = tier;
-      tierEl.classList.toggle('tier-gold', tier === 'Gold');
-      document.getElementById('loyalty-next').textContent = next
-        ? `${next[1] - points} more for ${next[0]} · 1 point per ₱10`
-        : 'Top tier · thanks for being a regular!';
-      document.getElementById('loyalty-bar').style.width = next ? `${((points - floor) / (next[1] - floor)) * 100}%` : '100%';
-      document.getElementById('loyalty-card').hidden = false;
-    }).catch(() => { /* not signed in or offline: keep the card hidden */ });
-  }
 })();
 </script>
 </body>
