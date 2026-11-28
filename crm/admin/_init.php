@@ -11,6 +11,9 @@
 require_once __DIR__ . '/../api/lib/bootstrap.php';
 Config::load(dirname(__DIR__), 'crm');
 require_once __DIR__ . '/../api/src/Events.php';
+require_once __DIR__ . '/../api/src/Customers.php';
+require_once __DIR__ . '/../api/src/Tickets.php';
+require_once __DIR__ . '/../api/src/Reports.php';
 require_once __DIR__ . '/_layout.php';
 
 session_name('kantina_crm_admin');
@@ -72,6 +75,35 @@ function require_login(): array
         redirect('login.php');
     }
     return $_SESSION['admin'];
+}
+
+/** Flash message after a change that sends a webhook to Kantina. */
+function flash_notified(string $saved, ?bool $notified): void
+{
+    if ($notified === null) {
+        flash('ok', 'Nothing changed.');
+    } elseif ($notified) {
+        flash('ok', "$saved — Kantina has been notified.");
+    } else {
+        flash('error', "$saved, but Kantina could not be notified. Resend it from Webhooks to Kantina.");
+    }
+}
+
+function tier_badge(string $tier): string
+{
+    $class = ['Gold' => 'warn', 'Silver' => 'gray', 'Bronze' => 'bronze'][$tier] ?? 'gray';
+    return '<span class="badge ' . $class . '">' . h($tier) . '</span>';
+}
+
+function status_badge(string $status): string
+{
+    $class = ['open' => 'bad', 'in_progress' => 'warn', 'resolved' => 'ok'][$status] ?? 'gray';
+    return '<span class="badge ' . $class . '">' . h(Tickets::LABELS[$status] ?? $status) . '</span>';
+}
+
+function stars(?int $rating): string
+{
+    return $rating ? '<span class="stars" title="' . $rating . ' of 5">' . str_repeat('★', $rating) . str_repeat('☆', 5 - $rating) . '</span>' : '<span class="muted">—</span>';
 }
 
 /** Run an action and turn API-style errors into a flash message. */

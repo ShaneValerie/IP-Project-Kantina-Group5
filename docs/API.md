@@ -86,8 +86,77 @@ Webhooks sent to Kantina: `product.updated`, `stock.low`, `stock.depleted`.
 |---|---|---|
 | GET | `/health` | Health check (no key needed) |
 | GET | `/whoami` | Checks the API key and returns the calling client |
+| POST | `/orders` | A Kantina order was completed: add it to the customer's history and give loyalty points (idempotent by `order_ref`) |
+| POST | `/tickets` | Create a feedback ticket from a student's feedback (idempotent by `external_ref`) |
+| GET | `/customers` | Customers, highest points first (`?q=` searches name, student ID and email) |
+| GET | `/customers/{kantina_user_id}` | One customer with their timeline and tickets |
+| GET | `/tickets` | Tickets, open first (`?status=open\|in_progress\|resolved`) |
+| GET | `/tickets/{ticket_no or external_ref}` | One ticket |
+| GET | `/reports/summary` | Customers per tier, points, orders, tickets per status, average rating |
 
-The customer, loyalty and feedback endpoints are being added (see the CRM issues on GitHub). List them here as they are built, together with the webhooks the CRM sends to Kantina (`POST /api/integrations/crm/webhook`).
+Every route except `/health` needs the `X-Api-Key` header (`401 invalid_api_key` without it).
+
+**Loyalty rule:** 1 point per ₱10 of a completed order, rounded down per order. Tier from the points: **Bronze** below 100, **Silver** 100–299, **Gold** 300 and up.
+
+#### The `customer` object
+Kantina sends it with every `POST`. The CRM creates the customer the first time and refreshes the name, student ID and email after that.
+```json
+"customer": { "kantina_user_id": 1, "student_id": "21-0942", "name": "Ana Reyes", "email": "ana.reyes@example.com" }
+```
+
+#### `POST /orders`
+```json
+// request
+{ "customer": { … }, "order_ref": "KTN-90214", "stall_id": "lolas-silog", "stall_name": "Lola's Silog",
+  "amount": 90, "completed_at": "2026-11-28T12:05:00+08:00" }
+// 200
+{ "customer": { "kantina_user_id": 1, "points": 129, "tier": "Silver", "orders_count": 14, "total_spent": 1290 },
+  "points_earned": 9, "duplicate": false }
+```
+Sending the same `order_ref` again returns `200` with the same customer, the points that order earned the first time and `"duplicate": true`. No points are added. This holds even when two copies arrive at the same moment, because the CRM database has a unique key on the order.
+Errors: `422 validation_error` (e.g. missing `order_ref`, negative `amount`).
+
+#### `POST /tickets`
+```json
+// request
+{ "customer": { … }, "external_ref": "FB-12", "order_ref": "KTN-90214", "stall_id": "lolas-silog",
+  "category": "order_issue", "rating": 2, "message": "My rice was cold." }
+// 201 (new) or 200 (this external_ref was already sent)
+{ "ticket": { "ticket_no": "TCK-0007", "external_ref": "FB-12", "order_ref": "KTN-90214", "stall_id": "lolas-silog",
+              "category": "order_issue", "rating": 2, "message": "My rice was cold.", "status": "open", "reply": null,
+              "created_at": "…", "updated_at": "…", "resolved_at": null,
+              "customer": { "kantina_user_id": 1, "student_id": "21-0942", "name": "Ana Reyes" } } }
+```
+`category`: `order_issue`, `complaint`, `suggestion` or `praise`. `rating` (optional): 1–5. `message`: 3–2000 characters. `status`: `open` → `in_progress` → `resolved` (changed by an admin in the CRM).
+
+#### `GET /customers/{kantina_user_id}`
+```json
+{ "customer": { "kantina_user_id": 1, "student_id": "21-0942", "name": "Ana Reyes", "email": "…", "orders_count": 2,
+                "total_spent": 210, "points": 121, "tier": "Silver", "first_order_at": "…", "last_order_at": "…", "created_at": "…" },
+  "interactions": [ { "type": "order_completed", "ref": "KTN-90180", "amount": 150, "points": 15, "note": "Lola's Silog", "created_at": "…" },
+                    { "type": "points_adjusted", "ref": "ADJ-…", "amount": null, "points": 100, "note": "Campus food fair bonus (by admin)", "created_at": "…" },
+                    { "type": "ticket", "ref": "TCK-0001", "amount": null, "points": 0, "note": "Order issue · KTN-90180", "created_at": "…" } ],
+  "tickets": [ { …Ticket without "customer"… } ] }
+```
+`404 customer_not_found` if Kantina never sent an order or feedback for that user.
+
+#### `GET /reports/summary`
+```json
+{ "customers": 3, "tiers": { "Bronze": 1, "Silver": 1, "Gold": 1 }, "points_outstanding": 461,
+  "points_earned_from_orders": 21, "orders": 2, "revenue": 210,
+  "tickets": { "open": 1, "in_progress": 1, "resolved": 1 }, "average_rating": 3.5, "rated_tickets": 2 }
+```
+
+#### Webhooks the CRM sends to Kantina
+`POST <kantina>/api/integrations/crm/webhook`, signed like the ERP's (`X-Kantina-Signature`, HMAC-SHA256 with `crm.webhook_secret`).
+
+| Event | When | `data` |
+|---|---|---|
+| `customer.updated` | An admin adds or removes points | `{ "customer": { "kantina_user_id": 1, "points": 150, "tier": "Silver" } }` |
+| `ticket.updated` | An admin replies to a ticket or changes its status | `{ "ticket": { "external_ref": "FB-12", "ticket_no": "TCK-0007", "status": "resolved", "reply": "Sorry about that! …" } }` |
+
+Points earned from orders are **not** sent as webhooks: Kantina already gets the new points and tier in the `POST /orders` response.
+Every webhook is saved first (`crm_webhook_deliveries`), so one that Kantina didn't accept can be resent from **CRM admin → Webhooks to Kantina**.
 
 ---
 
