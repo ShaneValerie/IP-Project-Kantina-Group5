@@ -1,12 +1,12 @@
 <?php
 /**
- * Integration endpoints: incoming webhooks from the ERP, manual ERP sync,
- * and the status page data.
+ * Integration endpoints: incoming webhooks from the ERP and the CRM, manual
+ * ERP sync, and the status page data.
  *
  * Incoming webhooks are:
  *   1. verified  — HMAC-SHA256 signature with the shared secret (else 401)
  *   2. de-duplicated — each event id is processed once (webhook_log)
- *   3. processed — e.g. the ERP price/stock copy is updated
+ *   3. processed — e.g. the ERP price/stock copy or the CRM loyalty points are updated
  *   4. logged    — visible on the integrations status page
  */
 final class Integrations
@@ -14,6 +14,7 @@ final class Integrations
     public static function routes(Router $r): void
     {
         $r->post('/integrations/erp/webhook', fn(Request $q) => self::receive($q, 'erp', [self::class, 'handleErp']));
+        $r->post('/integrations/crm/webhook', fn(Request $q) => self::receive($q, 'crm', [self::class, 'handleCrm']));
         $r->post('/integrations/erp/sync', fn() => ['synced' => Catalog::fullSync()], [Auth::staff()]);
         $r->get('/integrations/status', [self::class, 'status'], [Auth::staff()]);
     }
@@ -72,6 +73,26 @@ final class Integrations
         }
     }
 
+    /** CRM events: points changed by an admin, or a ticket reply / status change. */
+    public static function handleCrm(string $event, array $data): ?string
+    {
+        switch ($event) {
+            case 'customer.updated':
+                if (empty($data['customer']['kantina_user_id'])) {
+                    throw new HttpError(400, 'invalid_payload', 'Missing customer.');
+                }
+                Crm::applyLoyalty($data['customer']);
+                return null;
+            case 'ticket.updated':
+                if (empty($data['ticket']['external_ref'])) {
+                    throw new HttpError(400, 'invalid_payload', 'Missing ticket.');
+                }
+                return Crm::applyTicket($data['ticket']);
+            default:
+                return "Ignored unknown event $event";
+        }
+    }
+
     public static function status(): array
     {
         $outbox = [];
@@ -80,6 +101,7 @@ final class Integrations
         }
         return [
             'erp' => ErpClient::health(),
+            'crm' => CrmClient::health(),
             'last_sync' => [
                 'erp' => Support::kvGet('last_erp_sync'),
             ],

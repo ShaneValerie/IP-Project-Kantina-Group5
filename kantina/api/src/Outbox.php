@@ -116,6 +116,12 @@ final class Outbox
             case 'erp.sales_order.cancel':
                 $res = ErpClient::call('POST', "$path/cancel", null, $timeout);
                 break;
+            case 'crm.order.completed':
+                $res = CrmClient::call('POST', '/orders', $payload, $timeout);
+                break;
+            case 'crm.ticket.create':
+                $res = CrmClient::call('POST', '/tickets', $payload, $timeout);
+                break;
             default:
                 self::finish($row['id'], 'dead', 'Unknown event');
                 return ['id' => (int) $row['id'], 'ref' => $ref, 'event' => $row['event'], 'status' => 'rejected', 'message' => 'Unknown event'];
@@ -137,10 +143,17 @@ final class Outbox
             if ($row['event'] === 'erp.sales_order.create') {
                 Db::exec("UPDATE orders SET erp_status = 'synced', erp_so_no = ? WHERE ref = ?", [$body['sales_order']['so_no'] ?? null, $ref]);
             }
+            // The CRM answers with the new points/tier or the ticket number: keep a copy.
+            if ($row['event'] === 'crm.order.completed' && !empty($body['customer'])) {
+                Crm::applyLoyalty($body['customer']);
+            }
+            if ($row['event'] === 'crm.ticket.create' && !empty($body['ticket'])) {
+                Crm::applyTicket($body['ticket'], false);
+            }
             return $base + ['status' => 'sent'];
         }
 
-        // The ERP refused the data (sold out, cancelled, invalid): retrying won't help.
+        // The ERP/CRM refused the data (sold out, cancelled, invalid): retrying won't help.
         if ($res['status'] >= 400 && $res['status'] < 500 && !in_array($res['status'], [401, 408, 429], true)) {
             $err = $res['body']['error'] ?? [];
             $message = $err['message'] ?? $res['error'];
@@ -153,7 +166,7 @@ final class Outbox
             return $base + ['status' => 'rejected', 'code' => $err['code'] ?? 'rejected', 'message' => $message, 'sku' => $err['fields']['sku'] ?? null];
         }
 
-        // ERP offline or erroring: try again later — or give up after MAX_ATTEMPTS.
+        // ERP/CRM offline or erroring: try again later — or give up after MAX_ATTEMPTS.
         $attempts = (int) $row['attempts'];
         if ($attempts >= self::MAX_ATTEMPTS) {
             self::finish($row['id'], 'dead', 'Gave up after ' . $attempts . ' attempts: ' . $res['error']);

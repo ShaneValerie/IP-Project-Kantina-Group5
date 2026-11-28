@@ -58,3 +58,9 @@ final class ErpClient extends ServiceClient
     protected static function app(): string { return 'erp'; }
     protected static function label(): string { return 'Kantina ERP'; }
 }
+
+final class CrmClient extends ServiceClient
+{
+    protected static function app(): string { return 'crm'; }
+    protected static function label(): string { return 'Kantina CRM'; }
+}

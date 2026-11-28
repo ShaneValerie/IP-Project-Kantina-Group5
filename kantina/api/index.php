@@ -21,6 +21,8 @@ $modules = [
     'Orders',
     'Reservations',
     'Profile',
+    'Crm',
+    'Feedback',
     'Seller',
     'Notifier',
 ];

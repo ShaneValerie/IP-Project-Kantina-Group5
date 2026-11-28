@@ -1250,3 +1250,47 @@ button.chip, button.segtab{ font:inherit; cursor:pointer; }
   /* 4 cards per row: stack the status badge under the name so long texts like "Opens tomorrow 7 AM" fit */
   .page-home .stall-info{ flex-direction:column; align-items:flex-start; gap:8px; }
 }
+
+/* ── Help and feedback (feedback.html) + loyalty card (profile.html) · Kantina CRM ── */
+.page-feedback .fb-chips{ flex-wrap:wrap; overflow:visible; margin-top:0; }
+.page-feedback .fb-chips .chip{ cursor:pointer; }
+.page-feedback .fb-optional{ font-weight:500; color:var(--ink-faint); }
+.page-feedback .fb-label{ display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:8px; }
+.page-feedback .fb-select{
+  width:100%; padding:12px 13px; border-radius:var(--radius-md); border:1.5px solid var(--border);
+  background:var(--white); font:inherit; font-size:14px; color:var(--ink);
+}
+.page-feedback .note-field textarea{ min-height:96px; resize:vertical; font:inherit; font-size:14px; }
+.page-feedback .fb-stars{ display:flex; gap:6px; }
+.page-feedback .fb-stars button{
+  width:40px; height:40px; border-radius:10px; border:1.5px solid var(--border); background:var(--white);
+  font-size:20px; line-height:1; color:var(--border); cursor:pointer;
+}
+.page-feedback .fb-stars button.on{ color:var(--yellow-deep); border-color:var(--yellow); background:#FFF8E1; }
+.page-feedback .fb-error{ margin:8px 0 0; font-size:13px; color:#C4472B; }
+.page-feedback .fb-error[hidden]{ display:none; }
+.page-feedback .fb-submit{ margin-top:22px; }
+.page-feedback .fb-submit:disabled{ opacity:.6; cursor:default; }
+.page-feedback .fb-hint{ margin:10px 0 8px; text-align:center; font-size:12.5px; color:var(--ink-soft); }
+.page-feedback .fb-item{ margin-bottom:12px; }
+.page-feedback .fb-item-stars{ color:var(--yellow-deep); letter-spacing:1px; margin-left:4px; }
+.page-feedback .fb-item-message{ margin:10px 0 0; font-size:14px; line-height:1.5; white-space:pre-wrap; }
+.page-feedback .fb-reply{ margin-top:12px; padding:12px 14px; border-radius:var(--radius-md); background:var(--green-tint); }
+.page-feedback .fb-reply strong{ font-size:12.5px; color:var(--green); }
+.page-feedback .fb-reply p{ margin:4px 0 0; font-size:14px; line-height:1.5; white-space:pre-wrap; }
+
+.loyalty-card{
+  display:flex; align-items:center; gap:14px; margin:0 0 22px; padding:16px 18px;
+  border-radius:var(--radius-lg); background:var(--green); color:var(--white);
+}
+.loyalty-card[hidden]{ display:none; }
+.loyalty-card .loyalty-tier{
+  flex-shrink:0; padding:6px 12px; border-radius:999px; font-size:12.5px; font-weight:700;
+  background:rgba(255,255,255,.18); color:var(--white);
+}
+.loyalty-card .loyalty-tier.tier-gold{ background:var(--yellow); color:var(--ink); }
+.loyalty-card .loyalty-main{ flex:1; min-width:0; }
+.loyalty-card .loyalty-points{ font-size:22px; font-weight:700; line-height:1.1; }
+.loyalty-card .loyalty-next{ margin-top:4px; font-size:12.5px; opacity:.85; }
+.loyalty-card .loyalty-bar{ height:6px; margin-top:8px; border-radius:99px; background:rgba(255,255,255,.22); overflow:hidden; }
+.loyalty-card .loyalty-bar span{ display:block; height:100%; background:var(--yellow); }

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Help and feedback — Kantina</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&display=swap">
+</head>
+<body class="page-feedback flow-page">
+<div class="app-frame" id="screen-feedback">
+  <div class="topnav">
+    <div class="topnav-inner">
+      <a class="topnav-brand" href="home.html">
+        <span class="mark"><svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M6 3v8a3 3 0 0 0 3 3v7M6 3v5M9 3v5M6 8h3M17 3c-2 1.2-2 4-2 6 0 1.6.8 2.6 2 3v9" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        Kantina
+      </a>
+      <nav class="topnav-links"></nav>
+      <div class="topnav-actions">
+        <a class="icon-btn" href="cart.html" aria-label="Cart">
+          <svg viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+  <header class="flow-head">
+  <div class="flow-head-top">
+    <button class="icon-btn" type="button" aria-label="Go back" onclick="goBack('profile.html')">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <div class="flow-head-text">
+    <h1>Help and feedback</h1>
+    <p>Tell the canteen what went well or what went wrong</p>
+  </div>
+  </header>
+
+  <div class="scroll">
+    <div class="flow-body no-footer">
+
+      <form id="feedback-form" class="fb-form" novalidate>
+        <h2 class="section-label" style="margin-top:4px;">What is it about?</h2>
+        <div class="chip-row fb-chips" role="radiogroup" aria-label="Category" id="fb-category">
+          <button class="chip active" type="button" role="radio" aria-checked="true" data-value="order_issue">Problem with an order</button>
+          <button class="chip" type="button" role="radio" aria-checked="false" data-value="complaint">Complaint</button>
+          <button class="chip" type="button" role="radio" aria-checked="false" data-value="suggestion">Suggestion</button>
+          <button class="chip" type="button" role="radio" aria-checked="false" data-value="praise">Praise</button>
+        </div>
+
+        <div class="note-field">
+          <label for="fb-order">Which order? <span class="fb-optional">(optional)</span></label>
+          <select id="fb-order" class="fb-select">
+            <option value="">Not about a specific order</option>
+          </select>
+        </div>
+
+        <div class="note-field">
+          <span class="fb-label" id="fb-rating-label">How was it? <span class="fb-optional">(optional)</span></span>
+          <div class="fb-stars" role="radiogroup" aria-labelledby="fb-rating-label" id="fb-rating">
+            <button type="button" role="radio" aria-checked="false" data-value="1" aria-label="1 star">★</button>
+            <button type="button" role="radio" aria-checked="false" data-value="2" aria-label="2 stars">★</button>
+            <button type="button" role="radio" aria-checked="false" data-value="3" aria-label="3 stars">★</button>
+            <button type="button" role="radio" aria-checked="false" data-value="4" aria-label="4 stars">★</button>
+            <button type="button" role="radio" aria-checked="false" data-value="5" aria-label="5 stars">★</button>
+          </div>
+        </div>
+
+        <div class="note-field">
+          <label for="fb-message">Your message</label>
+          <textarea id="fb-message" maxlength="2000" rows="4" placeholder="e.g. My rice was cold when I picked it up."></textarea>
+          <p class="fb-error" id="fb-error" role="alert" hidden></p>
+        </div>
+
+        <button class="btn btn-primary fb-submit" type="submit" id="fb-submit">Send feedback</button>
+        <p class="fb-hint">The canteen team replies here, and by email.</p>
+      </form>
+
+      <h2 class="section-label">Your feedback</h2>
+      <div id="fb-list"><p class="load-msg">Loading…</p></div>
+
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+  <div class="tabbar">
+    <a class="tab" href="home.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M4 11.5 12 4l8 7.5M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Home</span>
+    </a>
+    <a class="tab" href="reservations.html">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 9.5h17M8 3v3.5M16 3v3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Reserve</span>
+    </a>
+    <a class="tab" href="orders.html">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h12l1 4H5l1-4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 7v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V7M9 11h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Orders</span>
+    </a>
+    <a class="tab active" href="profile.html">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.3" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <span>Profile</span>
+    </a>
+  </div>
+</div>
+<script src="js/api.js"></script>
+<script src="app.js"></script>
+<script>
+// Help and feedback: send feedback to the canteen (it becomes a Kantina CRM ticket)
+// and list my past feedback with the canteen's reply.
+(function () {
+  Auth.requireStudent();
+
+  const form = document.getElementById('feedback-form');
+  const categoryGroup = document.getElementById('fb-category');
+  const ratingGroup = document.getElementById('fb-rating');
+  const orderSelect = document.getElementById('fb-order');
+  const messageBox = document.getElementById('fb-message');
+  const errorEl = document.getElementById('fb-error');
+  const submitBtn = document.getElementById('fb-submit');
+  const list = document.getElementById('fb-list');
+
+  let category = 'order_issue';
+  let rating = null;
+
+  // ---------- category chips (one choice) ----------
+  categoryGroup.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-value]');
+    if (!chip) return;
+    category = chip.dataset.value;
+    categoryGroup.querySelectorAll('[data-value]').forEach(c => {
+      const on = c === chip;
+      c.classList.toggle('active', on);
+      c.setAttribute('aria-checked', String(on));
+    });
+  });
+
+  // ---------- stars (click the same star again to clear) ----------
+  function paintStars() {
+    ratingGroup.querySelectorAll('[data-value]').forEach(star => {
+      const value = Number(star.dataset.value);
+      star.classList.toggle('on', rating !== null && value <= rating);
+      star.setAttribute('aria-checked', String(value === rating));
+    });
+  }
+  ratingGroup.addEventListener('click', (e) => {
+    const star = e.target.closest('[data-value]');
+    if (!star) return;
+    const value = Number(star.dataset.value);
+    rating = rating === value ? null : value;
+    paintStars();
+  });
+
+  // ---------- my orders, for the "Which order?" list ----------
+  // ?order=KTN-90214 in the URL pre-selects it (e.g. a link from the tracking page).
+  const wanted = new URLSearchParams(location.search).get('order');
+  Promise.all([Api.get('/orders', { status: 'active' }), Api.get('/orders', { status: 'history' })])
+    .then(([active, history]) => {
+      active.orders.concat(history.orders).slice(0, 20).forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.ref;
+        opt.textContent = `${o.ref} · ${o.stall.name} · ${o.items_text}`;
+        orderSelect.appendChild(opt);
+      });
+      if (wanted) {
+        orderSelect.value = wanted;
+      }
+    })
+    .catch(() => { /* the form still works without the list */ });
+
+  // ---------- my feedback ----------
+  const BADGE = { open: 'badge-preparing', in_progress: 'badge-ready', resolved: 'badge-completed' };
+
+  function renderItem(f) {
+    const stars = f.rating ? `<span class="fb-item-stars" aria-label="${f.rating} of 5 stars">${'★'.repeat(f.rating)}${'☆'.repeat(5 - f.rating)}</span>` : '';
+    const about = [f.category_label, f.order_ref ? '#' + f.order_ref : null, f.stall && f.stall.name].filter(Boolean).map(escapeHtml).join(' · ');
+    const date = new Date(f.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+    const reply = f.reply
+      ? `<div class="fb-reply"><strong>Canteen team</strong><p>${escapeHtml(f.reply)}</p></div>`
+      : '';
+    return `<article class="order-card fb-item">
+      <div class="order-card-top">
+        <div>
+          <div class="order-card-title">${about}</div>
+          <div class="order-card-sub">${escapeHtml(date)}${f.ticket_no ? ' · ' + escapeHtml(f.ticket_no) : ''} ${stars}</div>
+        </div>
+        <span class="badge ${f.ticket_no ? BADGE[f.status] : 'badge-completed'}">${escapeHtml(f.status_label)}</span>
+      </div>
+      <p class="fb-item-message">${escapeHtml(f.message)}</p>
+      ${reply}
+    </article>`;
+  }
+
+  function loadList() {
+    Api.get('/feedback')
+      .then(res => {
+        list.innerHTML = res.feedback.length
+          ? res.feedback.map(renderItem).join('')
+          : '<p class="load-msg">You haven\'t sent any feedback yet.</p>';
+      })
+      .catch(err => { list.innerHTML = `<p class="load-msg">${escapeHtml(err.message)}</p>`; });
+  }
+
+  // ---------- send ----------
+  function showError(message) {
+    errorEl.textContent = message;
+    errorEl.hidden = !message;
+  }
+  messageBox.addEventListener('input', () => showError(''));
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const message = messageBox.value.trim();
+    if (message.length < 3) {
+      showError('Write a few words so the canteen knows what happened.');
+      messageBox.focus();
+      return;
+    }
+    const body = { category, message };
+    if (rating !== null) body.rating = rating;
+    if (orderSelect.value) body.order_ref = orderSelect.value;
+
+    submitBtn.disabled = true;
+    try {
+      const res = await Api.post('/feedback', body);
+      form.reset();
+      rating = null;
+      paintStars();
+      showToast(res.feedback.ticket_no ? 'Sent · ' + res.feedback.ticket_no : 'Saved · it will be sent shortly');
+      loadList();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  loadList();
+})();
+</script>
+</body>
+</html>
